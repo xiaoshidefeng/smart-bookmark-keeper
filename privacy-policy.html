@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智能书签管家 - 隐私政策 / Privacy Policy</title>
+  <style>
+    :root {
+      --bg: #f7faff;
+      --panel: #ffffff;
+      --line: #dbe6f2;
+      --text: #162132;
+      --muted: #5f6f89;
+      --accent: #4387f4;
+      --accent-soft: #eef5ff;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #f8fbff 0%, #f2f7fd 100%);
+      color: var(--text);
+      font: 400 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    }
+
+    .page {
+      max-width: 940px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    .hero,
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 32px;
+      margin-bottom: 18px;
+    }
+
+    .section {
+      padding: 26px 28px;
+      margin-top: 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 14px 0 12px;
+      font-size: clamp(30px, 5vw, 42px);
+      line-height: 1.1;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    h3 {
+      margin: 24px 0 8px;
+      font-size: 17px;
+    }
+
+    p,
+    li {
+      color: var(--muted);
+    }
+
+    ul {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    .lang {
+      display: grid;
+      gap: 14px;
+    }
+
+    .notice {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #fff8ec;
+      border: 1px solid #f3dfb0;
+      color: #7e5a11;
+      font-size: 14px;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <span class="eyebrow">Privacy Policy</span>
+      <h1>智能书签管家 隐私政策 / Smart Bookmark Keeper Privacy Policy</h1>
+      <p>
+        本隐私政策适用于 Chrome 扩展“智能书签管家（Smart Bookmark Keeper）”，说明扩展会读取哪些信息、如何使用这些信息，
+        以及 AI 整理功能如何处理书签内容。
+      </p>
+      <div class="meta">最后更新：2026-03-15</div>
+      <div class="notice">
+        AI 整理功能会在您主动发起请求时，把当前整理范围内的书签标题、URL、路径和整理诉求发送到 AI 服务端。
+        服务端仅用于本次生成方案，不存储您的书签内容。
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="lang">
+        <div>
+          <h2>中文</h2>
+
+          <h3>1. 我们会读取哪些数据</h3>
+          <ul>
+            <li>书签树结构、书签标题、URL、文件夹路径</li>
+            <li>本地设置，例如扫描设置、语言偏好、AI 历史任务、AI clientId</li>
+            <li>书签检测产生的本地扫描结果</li>
+          </ul>
+
+          <h3>2. 这些数据如何使用</h3>
+          <ul>
+            <li>用于展示、搜索、重命名、移动、删除、拖拽整理书签</li>
+            <li>用于检测失效链接、空文件夹和重复内容</li>
+            <li>用于生成书签洞察和 AI 整理方案</li>
+          </ul>
+
+          <h3>3. AI 整理会发送哪些数据</h3>
+          <p>当您在“AI整理”页面点击生成方案时，扩展会把以下信息发送到 AI 服务：</p>
+          <ul>
+            <li>当前整理范围内的书签标题、URL、路径</li>
+            <li>相关文件夹标题、路径、层级关系</li>
+            <li>您输入的整理诉求</li>
+            <li>用于每日次数限制的本地 clientId</li>
+          </ul>
+
+          <h3>4. 我们不会做什么</h3>
+          <ul>
+            <li>不会在插件内长期上传或备份整个书签库</li>
+            <li>不会在服务端存储您的书签内容</li>
+            <li>不会出售您的书签数据</li>
+          </ul>
+
+          <h3>5. 本地存储说明</h3>
+          <p>扩展会在浏览器本地保存部分数据，用于提升使用体验，包括：</p>
+          <ul>
+            <li>最近一次扫描结果</li>
+            <li>AI 整理历史任务摘要和预览结果</li>
+            <li>语言设置、扫描设置、引导提示关闭状态</li>
+          </ul>
+
+          <h3>6. 联系方式</h3>
+          <p>如您对隐私政策有疑问，可通过反馈邮箱联系：<a href="mailto:a1330661071@gmail.com">a1330661071@gmail.com</a></p>
+        </div>
+
+        <div>
+          <h2>English</h2>
+
+          <h3>1. What We Access</h3>
+          <ul>
+            <li>Your bookmark tree structure, bookmark titles, URLs, and folder paths</li>
+            <li>Local settings such as scan preferences, language preference, AI history, and AI clientId</li>
+            <li>Scan results generated locally by the extension</li>
+          </ul>
+
+          <h3>2. How We Use This Data</h3>
+          <ul>
+            <li>To display, search, rename, move, delete, and reorder bookmarks</li>
+            <li>To detect invalid links, empty folders, and duplicate content</li>
+            <li>To generate bookmark insights and AI organization plans</li>
+          </ul>
+
+          <h3>3. What AI Organize Sends</h3>
+          <p>When you click generate in the AI Organize page, the extension sends the following to the AI service:</p>
+          <ul>
+            <li>Bookmark titles, URLs, and paths in the current organization scope</li>
+            <li>Relevant folder titles, paths, and hierarchy information</li>
+            <li>Your organization request</li>
+            <li>A local clientId used for daily usage limits</li>
+          </ul>
+
+          <h3>4. What We Do Not Do</h3>
+          <ul>
+            <li>We do not upload or back up your full bookmark library as a persistent dataset</li>
+            <li>We do not store your bookmark content on the server</li>
+            <li>We do not sell your bookmark data</li>
+          </ul>
+
+          <h3>5. Local Storage</h3>
+          <p>The extension stores limited data locally in your browser to improve the experience, including:</p>
+          <ul>
+            <li>Your latest scan result</li>
+            <li>AI task history summaries and preview results</li>
+            <li>Language settings, scan settings, and dismissed guidance state</li>
+          </ul>
+
+          <h3>6. Contact</h3>
+          <p>If you have privacy questions, contact: <a href="mailto:a1330661071@gmail.com">a1330661071@gmail.com</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

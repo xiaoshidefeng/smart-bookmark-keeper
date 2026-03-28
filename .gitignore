@@ -1,0 +1,17 @@
+.DS_Store
+icons/.DS_Store
+
+.idea/
+.vscode/
+
+*.log
+*.tmp
+*.zip
+
+chrome-store-screenshots/
+chrome-store-screenshots-1280x800/
+chrome-store-screenshots-640x400/
+github-readme-screenshots/
+
+dist/
+build/

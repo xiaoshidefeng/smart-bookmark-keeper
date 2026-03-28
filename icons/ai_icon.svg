@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="aiGradient" x1="92" y1="86" x2="404" y2="422" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5AB3FF"/>
+      <stop offset="0.52" stop-color="#6E63FF"/>
+      <stop offset="1" stop-color="#B85BFF"/>
+    </linearGradient>
+    <filter id="softGlow" x="52" y="56" width="408" height="400" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="10" result="effect1_foregroundBlur"/>
+    </filter>
+  </defs>
+  <g filter="url(#softGlow)" fill="url(#aiGradient)">
+    <path d="M88 396L184 116H260L356 396H299L278 332H166L145 396H88ZM180 276H264L222 151L180 276Z"/>
+    <path d="M374 116H430V396H374V116Z"/>
+    <path d="M378 70L387.5 104.5L422 114L387.5 123.5L378 158L368.5 123.5L334 114L368.5 104.5L378 70Z"/>
+    <path d="M420 94L424.6 107.4L438 112L424.6 116.6L420 130L415.4 116.6L402 112L415.4 107.4L420 94Z"/>
+  </g>
+</svg>
