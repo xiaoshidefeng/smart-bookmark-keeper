@@ -1,5 +1,7 @@
 # Smart Bookmark Keeper
 
+[中文](./README_zh.md) | English
+
 Smart Bookmark Keeper is a Chrome extension for bookmark detection, insights, hands-on management, and AI-assisted organization.
 
 ## Screenshots
