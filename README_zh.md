@@ -4,6 +4,24 @@
 
 当前开源版本：`v1.0.0`
 
+## 截图预览
+
+### 书签检测
+
+![书签检测](./chrome-store-screenshots/dec2.png)
+
+### 书签洞察
+
+![书签洞察](./chrome-store-screenshots/insight.png)
+
+### 书签管理
+
+![书签管理](./chrome-store-screenshots/manage.png)
+
+### AI整理
+
+![AI整理](./chrome-store-screenshots/ai.png)
+
 ## 它能做什么
 
 - 检测失效链接和空文件夹

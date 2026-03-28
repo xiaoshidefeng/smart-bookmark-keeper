@@ -4,6 +4,24 @@ A Chrome extension for bookmark detection, insights, hands-on management, and AI
 
 Current open-source release: `v1.0.0`
 
+## Screenshots
+
+### Detection
+
+![Detection](./chrome-store-screenshots/dec2.png)
+
+### Insights
+
+![Insights](./chrome-store-screenshots/insight.png)
+
+### Management
+
+![Management](./chrome-store-screenshots/manage.png)
+
+### AI Organize
+
+![AI Organize](./chrome-store-screenshots/ai.png)
+
 ## What It Does
 
 - Detect invalid links and empty folders
