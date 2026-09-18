@@ -356,7 +356,7 @@
           <div class="manage-header-actions">
             <button id="refreshBtn" class="btn btn-ghost" type="button" data-i18n="manage.refresh">刷新书签</button>
             <button class="btn btn-ghost" id="toggleExpandBtn" type="button">
-              <span id="toggleExpandIcon">📂</span>
+              <span id="toggleExpandIcon" aria-hidden="true"></span>
               <span id="toggleExpandText" data-i18n="manage.collapseAll">全部折叠</span>
             </button>
           </div>
@@ -539,7 +539,7 @@
     </div>
   </div>
 
-  <div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
   <script src="i18n.js"></script>
   <script src="profile.js"></script>

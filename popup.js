@@ -465,8 +465,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const letter = String(title || '?').trim().charAt(0).toUpperCase() || '?';
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <rect width="64" height="64" rx="18" fill="#efe4d4"/>
-        <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" fill="#51614f">${letter}</text>
+        <rect width="64" height="64" rx="14" fill="#e7f0ff"/>
+        <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" fill="#2f6fda">${letter}</text>
       </svg>
     `;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;

@@ -137,6 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
     'http://127.0.0.1:8000/api/bookmarks/plan'
   ]);
 
+  const ICONS = {
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+    folderOpen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>'
+  };
+
   function t(key, params) {
     return window.BK_I18N.t(key, params);
   }
@@ -360,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ui.scanStatusText.textContent = t('scan.waiting');
     }
     ui.toggleExpandText.textContent = state.isExpandedByDefault ? t('manage.collapseAll') : t('manage.expandAll');
+    ui.toggleExpandIcon.innerHTML = state.isExpandedByDefault ? ICONS.folderOpen : ICONS.folder;
     updateManageToolbar();
     ui.langZhBtn?.classList.toggle('is-active', state.locale === 'zh-CN');
     ui.langEnBtn?.classList.toggle('is-active', state.locale === 'en-US');
@@ -1357,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="scan-result-copy">
           <div class="scan-result-title-row">
             ${type === 'folder'
-              ? '<span class="item-avatar item-avatar-folder">📁</span>'
+              ? `<span class="item-avatar item-avatar-folder">${ICONS.folder}</span>`
               : '<img class="item-favicon" alt="" loading="lazy">'}
             <div class="scan-result-title-wrap">
               <div class="scan-result-title">${escapeHtml(item.title || t('scan.untitled'))}</div>
@@ -1627,14 +1633,15 @@ document.addEventListener('DOMContentLoaded', () => {
         .map((child) => child.id);
       const hasDirectBookmarks = directBookmarkIds.length > 0;
 
-      const header = document.createElement('button');
-      header.type = 'button';
+      const header = document.createElement('div');
       header.className = `folder-header ${showChildren ? 'expanded' : ''}`;
+      header.setAttribute('role', 'button');
+      header.tabIndex = 0;
       header.draggable = !isEditing;
       header.innerHTML = `
         <span class="folder-main">
           <span class="folder-toggle-icon">▸</span>
-          <span class="item-avatar item-avatar-folder">📁</span>
+          <span class="item-avatar item-avatar-folder">${ICONS.folder}</span>
           ${isEditing
             ? `<span class="rename-editor rename-editor-inline"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${t('manage.editFolderName')}"></span>`
             : `<span class="folder-title">${escapeHtml(folder?.title || t('manage.untitledFolder'))}</span>`}
@@ -1656,7 +1663,7 @@ document.addEventListener('DOMContentLoaded', () => {
       content.className = `folder-children ${showChildren ? 'show' : ''}`;
       children.forEach((child) => content.appendChild(child));
 
-      header.addEventListener('click', () => {
+      const toggleFolderExpand = () => {
         if (isEditing) {
           return;
         }
@@ -1684,6 +1691,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         header.classList.toggle('expanded', nextExpanded);
         content.classList.toggle('show', nextExpanded);
+      };
+
+      header.addEventListener('click', toggleFolderExpand);
+      header.addEventListener('keydown', (event) => {
+        if (event.target !== header || (event.key !== 'Enter' && event.key !== ' ')) {
+          return;
+        }
+        event.preventDefault();
+        toggleFolderExpand();
       });
       header.addEventListener('dragover', (event) => {
         if (!canDropDraggedItemIntoFolder(node.id)) {
@@ -4078,7 +4094,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function toggleExpandFolders() {
     state.isExpandedByDefault = !state.isExpandedByDefault;
     ui.toggleExpandText.textContent = state.isExpandedByDefault ? t('manage.collapseAll') : t('manage.expandAll');
-    ui.toggleExpandIcon.textContent = state.isExpandedByDefault ? '📂' : '🗂️';
+    ui.toggleExpandIcon.innerHTML = state.isExpandedByDefault ? ICONS.folderOpen : ICONS.folder;
     state.expandedFolderIds.clear();
     if (state.isExpandedByDefault) {
       state.folderMap.forEach((_, id) => state.expandedFolderIds.add(id));
@@ -4159,8 +4175,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const letter = String(title || '?').trim().charAt(0).toUpperCase() || '?';
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <rect width="64" height="64" rx="18" fill="#e9e1d2"/>
-        <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" fill="#5a6858">${letter}</text>
+        <rect width="64" height="64" rx="14" fill="#e7f0ff"/>
+        <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" fill="#2f6fda">${letter}</text>
       </svg>
     `;
     return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;

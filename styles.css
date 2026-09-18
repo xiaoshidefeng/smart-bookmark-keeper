@@ -4231,13 +4231,13 @@ a:hover {
 .item-avatar-folder {
   display: grid;
   place-items: center;
-  background: rgba(201, 163, 92, 0.14);
-  color: #8c6720;
-}
-
-#scanPage .item-avatar-folder {
   background: rgba(67, 135, 244, 0.12);
   color: #2f6fda;
+}
+
+.item-avatar-folder svg {
+  width: 14px;
+  height: 14px;
 }
 
 .scan-result-actions {
