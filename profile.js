@@ -137,330 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
     'http://127.0.0.1:8000/api/bookmarks/plan'
   ]);
 
-  const I18N = {
-    'zh-CN': {
-      'app.title': '智能书签管家',
-      'app.skipToContent': '跳转到主内容',
-      'app.brandName': '智能书签管家',
-      'app.brandSubtitle': '检测、洞察、整理、AI',
-      'app.feedback': '去反馈',
-      'app.tabSwitch': '功能切换',
-      'tabs.scan': '书签检测',
-      'tabs.portrait': '书签洞察',
-      'tabs.manage': '书签管理',
-      'tabs.ai': 'AI整理',
-      'scan.kicker': 'Bookmark Detection',
-      'scan.title': '书签检测',
-      'scan.copy': '快速扫描书签中的失效链接和空文件夹，集中处理需要清理的问题。',
-      'scan.totalBookmarks': '总书签',
-      'scan.invalidBookmarks': '失效书签',
-      'scan.emptyFolders': '空文件夹',
-      'scan.liveProgress': '实时进度',
-      'scan.ctaTitle': '一键开始检测你的书签库',
-      'scan.keepLastResult': '会持续保存最近一次扫描结果，方便你回来继续处理问题项。',
-      'scan.progressAria': '扫描完成百分比',
-      'scan.progressLabel': '完成度',
-      'scan.duration': '扫描时间',
-      'scan.scanned': '已扫描',
-      'scan.recentResults': '最近扫描结果',
-      'scan.notStarted': '尚未开始扫描',
-      'scan.selectAllIssues': '全选问题项',
-      'scan.clearResults': '清空结果',
-      'scan.selectAllEmptyFolders': '全选空文件夹',
-      'scan.start': '开始快速扫描',
-      'scan.pause': '暂停',
-      'scan.stop': '停止',
-      'scan.resume': '继续',
-      'scan.settings': '扫描设置',
-      'scan.refreshStats': '刷新统计',
-      'scan.waiting': '等待开始',
-      'scan.stopped': '扫描已停止',
-      'scan.paused': '扫描已暂停',
-      'scan.resuming': '正在继续扫描...',
-      'scan.resumed': '扫描已继续',
-      'scan.timeoutLabel': '请求超时时间',
-      'scan.timeoutHelp': '网络较差建议调到 15-20 秒，链接很多时可适当缩短。',
-      'portrait.kicker': 'Bookmark Insights',
-      'portrait.title': '书签洞察',
-      'portrait.copy': '先看您的书签现状、活跃趋势和待整理重点，再决定下一步该从哪里开始整理。',
-      'portrait.overallConclusion': '整体结论',
-      'portrait.analyzing': '分析中',
-      'portrait.overallNote': '结合收藏规模、来源分布和结构状态，快速总结这份书签库的整体特点。',
-      'portrait.thisInsight': '本次洞察',
-      'portrait.generating': '正在生成书签洞察',
-      'portrait.generatingNote': '先帮您概括书签库的当前状态，再指出更值得优先整理的方向。',
-      'portrait.collectionScale': '收藏规模',
-      'portrait.totalBookmarkCount': '当前累计书签数',
-      'portrait.sourceBreadth': '来源广度',
-      'portrait.uniqueSourceCount': '不同网站来源数量',
-      'portrait.actionableItems': '待整理项',
-      'portrait.actionableMeta': '重复链接和空文件夹会显示在这里',
-      'portrait.trendTitle': '收藏趋势',
-      'portrait.trendCopy': '按年、月、日查看收藏节奏，快速判断最近是否还在持续积累。',
-      'portrait.trendAria': '趋势粒度切换',
-      'portrait.topDomains': '高频域名',
-      'portrait.topDomainsCopy': '最常被收藏的网站，能直接看出您的信息来源重心。',
-      'portrait.focusTitle': '优先整理这里',
-      'portrait.focusCopy': '先看最容易产生混乱的结构位置，再决定是去检测还是直接开始整理。',
-      'portrait.openScan': '去书签检测',
-      'portrait.openManage': '去书签管理',
-      'portrait.largestFolder': '最大文件夹',
-      'portrait.viewInManage': '在管理页查看',
-      'portrait.duplicateLinks': '重复链接',
-      'portrait.viewDuplicates': '查看重复链接',
-      'portrait.emptyFoldersFocus': '空文件夹',
-      'portrait.emptyFoldersMeta': '优先清理的结构噪音',
-      'portrait.handleInDetection': '去检测页处理',
-      'portrait.maxDepth': '最大层级',
-      'portrait.depthMeta': '目录嵌套深度',
-      'portrait.expandToView': '展开目录查看',
-      'portrait.folderHotspots': '文件夹热点',
-      'portrait.folderHotspotsCopy': '最常承载书签内容的目录，能快速看出哪些地方最值得先整理。',
-      'portrait.interestTags': '兴趣标签',
-      'portrait.interestTagsCopy': '根据域名和关键词自动推断，只作为轻量参考，不干扰主结论。',
-      'portrait.shareSummary': '分享摘要',
-      'portrait.shareSummaryCopy': '需要时再复制出去，不再占据洞察页主舞台。',
-      'portrait.shareTotal': '总书签',
-      'portrait.shareDomains': '唯一域名',
-      'portrait.shareScore': '组织分',
-      'portrait.shareDays': '收藏天数',
-      'portrait.totalFoldersLabel': '文件夹数',
-      'portrait.totalFoldersMeta': '当前目录结构数量',
-      'portrait.collectionDaysLabel': '收藏天数',
-      'portrait.collectionDaysMeta': '持续积累时长',
-      'portrait.organizationScoreLabel': '组织分',
-      'portrait.organizationScoreMeta': '整理成熟度参考',
-      'portrait.httpsRatioLabel': 'HTTPS 占比',
-      'portrait.httpsRatioMeta': '来源质量参考',
-      'portrait.avgPerFolderLabel': '平均每文件夹',
-      'portrait.avgPerFolderMeta': '书签数量',
-      'portrait.oldestBookmarkLabel': '最早收藏',
-      'portrait.newestBookmarkLabel': '最近收藏',
-      'manage.kicker': 'Bookmark Organizing',
-      'manage.title': '书签管理',
-      'manage.copy': '搜索、筛选、重命名和拖拽调整书签结构，让整理过程更顺手。',
-      'manage.refresh': '刷新书签',
-      'manage.collapseAll': '全部折叠',
-      'manage.expandAll': '全部展开',
-      'manage.searchPlaceholder': '搜索标题、网址或路径',
-      'manage.selectionNone': '未选中书签',
-      'manage.selectionNoneHint': '未选中书签，可直接拖动单条排序',
-      'manage.selectAllVisible': '全选当前视图',
-      'manage.clearSelection': '清空选择',
-      'manage.filterAll': '筛选：全部',
-      'manage.filterOptionAll': '全部书签',
-      'manage.filterOptionUnused180': '最近半年未打开',
-      'manage.filterOptionUnused365': '最近一年未打开',
-      'manage.filterOptionAdded180': '半年前添加',
-      'manage.filterOptionAdded365': '一年前添加',
-      'manage.filterTooltipUnused': '这里统计的是通过书签节点打开的时间，不是网页最近访问时间',
-      'manage.dismissTip': '关闭提示',
-      'manage.deleteSelection': '删除选中',
-      'ai.kicker': 'Bookmark AI',
-      'ai.title': 'AI整理',
-      'ai.copy': '告诉 AI 您想怎么整理书签，先查看方案，再决定是否应用到书签栏。',
-      'ai.suggestedActions': '建议动作',
-      'ai.applicable': '可应用',
-      'ai.requestTitle': '整理诉求',
-      'ai.requestCopy': '告诉 AI 你想怎么整理书签，生成后你可以先看方案，再决定是否应用。',
-      'ai.pending': '待生成',
-      'ai.scope': '整理范围',
-      'ai.scopeAll': '全部书签',
-      'ai.scopeFiltered': '当前筛选结果',
-      'ai.scopeSelected': '仅选中的书签',
-      'ai.scopeHintAll': '本次将基于全部书签生成整理方案。',
-      'ai.usageDefault': '今日 AI 整理剩余 8 次。',
-      'ai.requestPlaceholder': '例如：帮我把前端学习资料整理到一个文件夹，保留有意义的分类，并把标题改得更统一。',
-      'ai.generate': 'AI整理',
-      'ai.apply': '应用方案',
-      'ai.undoLatest': '撤销最近一次应用',
-      'ai.summaryTitle': '方案摘要',
-      'ai.summaryCopy': '先看这次整理会带来什么变化，再看 AI 的判断和需要你留意的地方。',
-      'ai.judgement': 'AI判断',
-      'ai.summaryEmpty': '还没有生成整理方案，先输入诉求再让 AI 帮你整理。',
-      'ai.historyTitle': 'AI整理历史',
-      'ai.historyCopy': '你之前生成过的整理方案会保存在这里，点一条就能回看当时的结果。',
-      'ai.previewTitle': '变更预览',
-      'ai.previewCopy': 'AI 准备执行的每一步都会列在这里，你确认后才会真正改动书签。',
-      'ai.privacy': '隐私说明',
-      'ai.privacyCopy': '书签信息只会在本次生成方案时发送给 AI 服务处理，服务器不会存储您的书签内容。',
-      'common.cancel': '取消',
-      'common.save': '保存设置',
-      'common.undo': '撤销',
-      'common.deleteSelected': '删除选中',
-      'common.year': '年',
-      'common.month': '月',
-      'common.day': '日',
-      'common.seconds': '秒',
-      'common.closeSettings': '关闭设置',
-      'common.loadingBookmarks': '正在加载书签...',
-      'toast.settingsSaved': '扫描设置已保存',
-      'toast.aiServiceUnavailable': 'AI 服务暂时不可用，请稍后再试',
-      'toast.feedbackCopied': '已复制反馈邮箱',
-      'toast.feedbackCopyFailed': '复制失败，请手动复制邮箱地址'
-    },
-    'en-US': {
-      'app.title': 'Smart Bookmark Keeper',
-      'app.skipToContent': 'Skip to main content',
-      'app.brandName': 'Smart Bookmark Keeper',
-      'app.brandSubtitle': 'Detect, Insight, Organize, AI',
-      'app.feedback': 'Feedback',
-      'app.tabSwitch': 'Tab switch',
-      'tabs.scan': 'Detection',
-      'tabs.portrait': 'Insights',
-      'tabs.manage': 'Management',
-      'tabs.ai': 'AI Organize',
-      'scan.kicker': 'Bookmark Detection',
-      'scan.title': 'Bookmark Detection',
-      'scan.copy': 'Quickly scan invalid links and empty folders, then handle cleanup in one place.',
-      'scan.totalBookmarks': 'Bookmarks',
-      'scan.invalidBookmarks': 'Invalid',
-      'scan.emptyFolders': 'Empty Folders',
-      'scan.liveProgress': 'Live Progress',
-      'scan.ctaTitle': 'Start checking your bookmark library in one click',
-      'scan.keepLastResult': 'The latest scan result is kept so you can come back and continue handling issues.',
-      'scan.progressAria': 'Scan completion percentage',
-      'scan.progressLabel': 'Progress',
-      'scan.duration': 'Duration',
-      'scan.scanned': 'Scanned',
-      'scan.recentResults': 'Recent Scan Results',
-      'scan.notStarted': 'Scan has not started yet',
-      'scan.selectAllIssues': 'Select All Issues',
-      'scan.clearResults': 'Clear Results',
-      'scan.selectAllEmptyFolders': 'Select All Empty Folders',
-      'scan.start': 'Start Fast Scan',
-      'scan.pause': 'Pause',
-      'scan.stop': 'Stop',
-      'scan.resume': 'Resume',
-      'scan.settings': 'Scan Settings',
-      'scan.refreshStats': 'Refresh Stats',
-      'scan.waiting': 'Waiting to start',
-      'scan.stopped': 'Scan stopped',
-      'scan.paused': 'Scan paused',
-      'scan.resuming': 'Resuming scan...',
-      'scan.resumed': 'Scan resumed',
-      'scan.timeoutLabel': 'Request timeout',
-      'scan.timeoutHelp': 'If the network is unstable, 15-20 seconds is safer. For large batches, you can shorten it a bit.',
-      'portrait.kicker': 'Bookmark Insights',
-      'portrait.title': 'Bookmark Insights',
-      'portrait.copy': 'Review the current state, activity trend, and cleanup priorities before deciding what to organize first.',
-      'portrait.overallConclusion': 'Overall Conclusion',
-      'portrait.analyzing': 'Analyzing',
-      'portrait.overallNote': 'Summarize the overall characteristics of this bookmark library based on scale, sources, and structure.',
-      'portrait.thisInsight': 'This Insight',
-      'portrait.generating': 'Generating bookmark insights',
-      'portrait.generatingNote': 'We first summarize the current state of your bookmark library, then point out what is worth organizing first.',
-      'portrait.collectionScale': 'Collection Scale',
-      'portrait.totalBookmarkCount': 'Total bookmarks right now',
-      'portrait.sourceBreadth': 'Source Breadth',
-      'portrait.uniqueSourceCount': 'Number of unique websites',
-      'portrait.actionableItems': 'Actionable Items',
-      'portrait.actionableMeta': 'Duplicate links and empty folders will appear here',
-      'portrait.trendTitle': 'Collection Trend',
-      'portrait.trendCopy': 'View your collection rhythm by year, month, or day to see whether you are still actively saving links.',
-      'portrait.trendAria': 'Trend granularity switch',
-      'portrait.topDomains': 'Top Domains',
-      'portrait.topDomainsCopy': 'The sites you save most often reveal where your information focus is.',
-      'portrait.focusTitle': 'Start Here',
-      'portrait.focusCopy': 'Review the most disorder-prone areas first, then decide whether to inspect issues or start managing right away.',
-      'portrait.openScan': 'Open Detection',
-      'portrait.openManage': 'Open Management',
-      'portrait.largestFolder': 'Largest Folder',
-      'portrait.viewInManage': 'View in Management',
-      'portrait.duplicateLinks': 'Duplicate Links',
-      'portrait.viewDuplicates': 'View Duplicates',
-      'portrait.emptyFoldersFocus': 'Empty Folders',
-      'portrait.emptyFoldersMeta': 'Structural noise worth cleaning first',
-      'portrait.handleInDetection': 'Handle in Detection',
-      'portrait.maxDepth': 'Max Depth',
-      'portrait.depthMeta': 'Folder nesting depth',
-      'portrait.expandToView': 'Expand to View',
-      'portrait.folderHotspots': 'Folder Hotspots',
-      'portrait.folderHotspotsCopy': 'These folders hold the most bookmarks and are usually the best places to clean up first.',
-      'portrait.interestTags': 'Interest Tags',
-      'portrait.interestTagsCopy': 'Inferred from domains and keywords as a lightweight reference without distracting from the main conclusions.',
-      'portrait.shareSummary': 'Share Summary',
-      'portrait.shareSummaryCopy': 'Copy it only when needed so it does not dominate the insights page.',
-      'portrait.shareTotal': 'Bookmarks',
-      'portrait.shareDomains': 'Unique Domains',
-      'portrait.shareScore': 'Organization',
-      'portrait.shareDays': 'Days Saved',
-      'portrait.totalFoldersLabel': 'Folders',
-      'portrait.totalFoldersMeta': 'Current folder structure count',
-      'portrait.collectionDaysLabel': 'Collection Days',
-      'portrait.collectionDaysMeta': 'How long you have been saving',
-      'portrait.organizationScoreLabel': 'Organization Score',
-      'portrait.organizationScoreMeta': 'A reference for structure maturity',
-      'portrait.httpsRatioLabel': 'HTTPS Ratio',
-      'portrait.httpsRatioMeta': 'A reference for source quality',
-      'portrait.avgPerFolderLabel': 'Avg per Folder',
-      'portrait.avgPerFolderMeta': 'Bookmarks per folder',
-      'portrait.oldestBookmarkLabel': 'Oldest Saved',
-      'portrait.newestBookmarkLabel': 'Most Recent Saved',
-      'manage.kicker': 'Bookmark Organizing',
-      'manage.title': 'Bookmark Management',
-      'manage.copy': 'Search, filter, rename, and drag to adjust bookmark structure more efficiently.',
-      'manage.refresh': 'Refresh Bookmarks',
-      'manage.collapseAll': 'Collapse All',
-      'manage.expandAll': 'Expand All',
-      'manage.searchPlaceholder': 'Search title, URL, or path',
-      'manage.selectionNone': 'No bookmarks selected',
-      'manage.selectionNoneHint': 'No bookmarks selected. Drag a single item to reorder.',
-      'manage.selectAllVisible': 'Select Current View',
-      'manage.clearSelection': 'Clear Selection',
-      'manage.filterAll': 'Filter: All',
-      'manage.filterOptionAll': 'All Bookmarks',
-      'manage.filterOptionUnused180': 'Not Opened via Bookmark in 6 Months',
-      'manage.filterOptionUnused365': 'Not Opened via Bookmark in 1 Year',
-      'manage.filterOptionAdded180': 'Added Before 6 Months',
-      'manage.filterOptionAdded365': 'Added Before 1 Year',
-      'manage.filterTooltipUnused': 'This tracks when the bookmark node was opened, not when the page itself was visited.',
-      'manage.dismissTip': 'Dismiss tip',
-      'manage.deleteSelection': 'Delete Selected',
-      'ai.kicker': 'Bookmark AI',
-      'ai.title': 'AI Organize',
-      'ai.copy': 'Tell AI how you want to organize your bookmarks, review the plan, and decide whether to apply it.',
-      'ai.suggestedActions': 'Suggested Actions',
-      'ai.applicable': 'Applicable',
-      'ai.requestTitle': 'Request',
-      'ai.requestCopy': 'Tell AI how you want your bookmarks organized. Review the plan first, then decide whether to apply it.',
-      'ai.pending': 'Pending',
-      'ai.scope': 'Scope',
-      'ai.scopeAll': 'All Bookmarks',
-      'ai.scopeFiltered': 'Current Filtered Results',
-      'ai.scopeSelected': 'Selected Bookmarks Only',
-      'ai.scopeHintAll': 'This plan will be generated based on all bookmarks.',
-      'ai.usageDefault': '8 AI organizes remaining today.',
-      'ai.requestPlaceholder': 'Example: Organize my frontend study resources into one folder, keep useful categories, and make titles more consistent.',
-      'ai.generate': 'AI Organize',
-      'ai.apply': 'Apply Plan',
-      'ai.undoLatest': 'Undo Latest Apply',
-      'ai.summaryTitle': 'Plan Summary',
-      'ai.summaryCopy': 'Review what will change first, then read AI’s reasoning and anything you should pay attention to.',
-      'ai.judgement': 'AI Reasoning',
-      'ai.summaryEmpty': 'No plan yet. Enter your request first and let AI prepare one.',
-      'ai.historyTitle': 'AI History',
-      'ai.historyCopy': 'Your previously generated plans are kept here so you can reopen them anytime.',
-      'ai.previewTitle': 'Change Preview',
-      'ai.previewCopy': 'Every step AI plans to execute is listed here. Nothing changes until you confirm.',
-      'ai.privacy': 'Privacy notice',
-      'ai.privacyCopy': 'Bookmark information is sent to the AI service only for this plan generation. The server does not store your bookmark content.',
-      'common.cancel': 'Cancel',
-      'common.save': 'Save',
-      'common.undo': 'Undo',
-      'common.deleteSelected': 'Delete Selected',
-      'common.year': 'Year',
-      'common.month': 'Month',
-      'common.day': 'Day',
-      'common.seconds': 'sec',
-      'common.closeSettings': 'Close settings',
-      'common.loadingBookmarks': 'Loading bookmarks...',
-      'toast.settingsSaved': 'Scan settings saved',
-      'toast.aiServiceUnavailable': 'The AI service is temporarily unavailable. Please try again later.',
-      'toast.feedbackCopied': 'Feedback email copied',
-      'toast.feedbackCopyFailed': 'Copy failed. Please copy the email manually'
-    }
-  };
+  function t(key, params) {
+    return window.BK_I18N.t(key, params);
+  }
 
   const state = {
     activeTab: 'scan',
@@ -635,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state.aiEndpoint = normalizeAiEndpoint(result.aiEndpoint);
     state.aiClientId = result.aiClientId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `client-${Date.now()}`);
     state.locale = result.locale === 'en-US' ? 'en-US' : 'zh-CN';
+    window.BK_I18N.setLocale(state.locale);
     state.aiActiveHistoryId = null;
     ui.timeoutValue.value = String(CONFIG.TIMEOUT);
     ui.timeoutDisplay.textContent = String(CONFIG.TIMEOUT);
@@ -668,28 +348,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return normalized || CONFIG.AI_ENDPOINT_DEFAULT;
   }
 
-  function t(key) {
-    return I18N[state.locale]?.[key] || I18N['zh-CN'][key] || key;
+  function t(key, params) {
+    return window.BK_I18N.t(key, params);
   }
 
   function applyTranslations() {
     document.documentElement.lang = state.locale;
-    document.querySelectorAll('[data-i18n]').forEach((node) => {
-      node.textContent = t(node.dataset.i18n);
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
-      node.setAttribute('placeholder', t(node.dataset.i18nPlaceholder));
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach((node) => {
-      node.textContent = t(node.dataset.i18nTitle);
-      document.title = node.textContent;
-    });
-    document.querySelectorAll('[data-i18n-aria-label]').forEach((node) => {
-      node.setAttribute('aria-label', t(node.dataset.i18nAriaLabel));
-    });
-    document.querySelectorAll('[data-tooltip-key]').forEach((node) => {
-      node.dataset.tooltip = t(node.dataset.tooltipKey);
-    });
+    window.BK_I18N.setLocale(state.locale);
+    window.BK_I18N.applyElementTranslations();
     if (!state.scanController.isRunning && !state.scanController.isPaused) {
       ui.scanStatusText.textContent = t('scan.waiting');
     }
@@ -704,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     state.locale = locale;
+    window.BK_I18N.setLocale(locale);
     applyTranslations();
     renderAiPlan();
     await new Promise((resolve) => chrome.storage.local.set({ locale }, resolve));
@@ -803,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function indexNodes(nodes, path, parentFolderId) {
     nodes.forEach((node, index) => {
       if (node.children) {
-        const title = node.title || '未命名文件夹';
+        const title = node.title || t('manage.untitledFolder');
         const nextPath = [...path, title];
 
         state.folderMap.set(node.id, {
@@ -902,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
       totalFolders: state.folderMap.size,
       emptyFolders: state.emptyFolders.length,
       maxDepth: 0,
-      largestFolder: { title: '未命名文件夹', count: 0 },
+      largestFolder: { title: t('manage.untitledFolder'), count: 0 },
       oldestBookmark: null,
       newestBookmark: null,
       collectionDays: 0,
@@ -921,9 +588,9 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       topKeywords: [],
       tags: [],
-      level: '新手收藏者',
-      headline: '正在建立你的收藏画像',
-      subtitle: '先从结构、域名和时间维度来理解你的书签。'
+      level: t('portrait.levelNew'),
+      headline: t('portrait.headlineDefault'),
+      subtitle: t('portrait.subtitleDefault')
     };
 
     const domains = new Map();
@@ -1051,21 +718,21 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     if (levelScore > 80) {
-      stats.level = state.locale === 'en-US' ? 'Systematic Collector' : '体系化收藏家';
-      stats.headline = state.locale === 'en-US' ? 'Your bookmarks already form a stable information system' : '你的书签已经形成稳定的信息系统';
-      stats.subtitle = state.locale === 'en-US' ? 'Wide-ranging sources, clear structure, and a consistent organizing habit.' : '来源广、结构清晰，而且有持续整理习惯。';
+      stats.level = t('portrait.levelSystematic');
+      stats.headline = t('portrait.headlineSystematic');
+      stats.subtitle = t('portrait.subtitleSystematic');
     } else if (levelScore > 55) {
-      stats.level = state.locale === 'en-US' ? 'Advanced Organizer' : '进阶整理者';
-      stats.headline = state.locale === 'en-US' ? 'You are intentionally building a personal knowledge base' : '你已经在有意识地构建个人资料库';
-      stats.subtitle = state.locale === 'en-US' ? 'Reduce empty folders and duplicate links further to make it even cleaner.' : '再减少空文件夹和重复链接，画像会更完整。';
+      stats.level = t('portrait.levelAdvanced');
+      stats.headline = t('portrait.headlineAdvanced');
+      stats.subtitle = t('portrait.subtitleAdvanced');
     } else if (levelScore > 30) {
-      stats.level = state.locale === 'en-US' ? 'Exploratory Collector' : '探索型收藏者';
-      stats.headline = state.locale === 'en-US' ? 'You are steadily expanding your inspiration pool' : '你更像在不断扩充灵感池';
-      stats.subtitle = state.locale === 'en-US' ? 'Your collection is broad, but structure and deduplication still have room to improve.' : '收藏范围不错，但结构和去重还有优化空间。';
+      stats.level = t('portrait.levelExploratory');
+      stats.headline = t('portrait.headlineExploratory');
+      stats.subtitle = t('portrait.subtitleExploratory');
     } else {
-      stats.level = state.locale === 'en-US' ? 'New Collector' : '新手收藏者';
-      stats.headline = state.locale === 'en-US' ? 'Your collection is still in a rapid accumulation stage' : '你的收藏还处在快速积累阶段';
-      stats.subtitle = state.locale === 'en-US' ? 'Building a clearer folder structure first will noticeably improve usability.' : '先建立更清晰的文件夹体系，会明显提升可用性。';
+      stats.level = t('portrait.levelNew');
+      stats.headline = t('portrait.headlineNew');
+      stats.subtitle = t('portrait.subtitleNew');
     }
 
     return stats;
@@ -1087,20 +754,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setNodeText(ui.portraitOrganizationScore, `${stats.organizationScore}`);
     setNodeText(ui.portraitHttpsRatio, `${stats.httpsRatio}%`);
     setNodeText(ui.portraitActionableIssues, String(actionableIssues));
-    setNodeText(ui.portraitActionableMeta, state.locale === 'en-US'
-      ? `${stats.duplicateCount} duplicate links, ${stats.emptyFolders} empty folders`
-      : `${stats.duplicateCount} 个重复链接，${stats.emptyFolders} 个空文件夹`);
+    setNodeText(ui.portraitActionableMeta, t('portrait.duplicateEmptyMeta', { n: stats.duplicateCount, m: stats.emptyFolders }));
     setNodeText(ui.portraitLargestFolder, stats.largestFolder.title);
-    setNodeText(ui.portraitLargestFolderMeta, state.locale === 'en-US'
-      ? `${stats.largestFolder.count} direct child bookmarks`
-      : `${stats.largestFolder.count} 个直接子书签`);
+    setNodeText(ui.portraitLargestFolderMeta, t('portrait.largestFolderMeta', { n: stats.largestFolder.count }));
     setNodeText(ui.portraitEmptyFolders, String(stats.emptyFolders));
     setNodeText(ui.portraitMaxDepth, String(stats.maxDepth));
     setNodeText(ui.portraitAvgPerFolder, String(stats.avgPerFolder));
     setNodeText(ui.portraitDuplicateUrls, String(stats.duplicateCount));
-    setNodeText(ui.portraitDuplicateMeta, state.locale === 'en-US'
-      ? `${stats.duplicatePercentage}% of total`
-      : `占比 ${stats.duplicatePercentage}%`);
+    setNodeText(ui.portraitDuplicateMeta, t('portrait.duplicateMeta', { p: stats.duplicatePercentage }));
     setNodeText(ui.portraitUniqueDomains, String(stats.uniqueDomains));
     setNodeText(ui.portraitOldestBookmark, stats.oldestBookmark ? stats.oldestBookmark.title : '-');
     setNodeText(ui.portraitOldestDate, stats.oldestBookmark ? formatShortDate(stats.oldestBookmark.date) : '-');
@@ -1113,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ui.portraitTags) {
       ui.portraitTags.innerHTML = stats.tags.length > 0
         ? stats.tags.map((tag) => `<span class="portrait-tag">${escapeHtml(tag)}</span>`).join('')
-        : `<div class="result-empty-state">${state.locale === 'en-US' ? 'Not enough data yet to infer interest tags.' : '还没有足够的数据来推断兴趣标签。'}</div>`;
+        : `<div class="result-empty-state">${t('portrait.noTagData')}</div>`;
     }
 
     if (ui.portraitDomainList) {
@@ -1123,16 +784,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="portrait-domain-rank">#${index + 1}</div>
           <div class="portrait-domain-copy">
             <div class="portrait-domain-name">${escapeHtml(item.domain)}</div>
-            <div class="portrait-domain-meta">${state.locale === 'en-US' ? `${item.count} bookmarks · ${item.percentage}%` : `${item.count} 条书签 · ${item.percentage}%`}</div>
+            <div class="portrait-domain-meta">${t('portrait.domainMeta', { n: item.count, p: item.percentage })}</div>
           </div>
-          <button class="portrait-inline-action" type="button" data-domain="${escapeHtml(item.domain)}">${state.locale === 'en-US' ? 'View' : '查看'}</button>
+          <button class="portrait-inline-action" type="button" data-domain="${escapeHtml(item.domain)}">${t('portrait.view')}</button>
         </div>
       `).join('')
-        : `<div class="result-empty-state">${state.locale === 'en-US' ? 'No domain data yet.' : '暂无域名数据。'}</div>`;
+        : `<div class="result-empty-state">${t('portrait.noDomainData')}</div>`;
       ui.portraitDomainList.querySelectorAll('[data-domain]').forEach((button) => {
         button.addEventListener('click', () => {
           const domain = button.dataset.domain || '';
-          focusManageView(domain, domain ? (state.locale === 'en-US' ? `Focused on bookmarks related to "${domain}"` : `已定位到域名“${domain}”相关书签`) : (state.locale === 'en-US' ? 'Switched to bookmark management' : '已切换到书签整理'));
+          focusManageView(domain, domain ? t('portrait.focusDomain', { q: domain }) : t('portrait.switchedToManage'));
         });
       });
     }
@@ -1140,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ui.portraitKeywords) {
       ui.portraitKeywords.innerHTML = stats.topKeywords.length > 0
         ? stats.topKeywords.map((item) => `<span class="portrait-keyword">${escapeHtml(item.keyword)}<small>${item.count}</small></span>`).join('')
-        : `<div class="result-empty-state">${state.locale === 'en-US' ? 'No high-frequency keywords yet.' : '暂无高频关键词。'}</div>`;
+        : `<div class="result-empty-state">${t('portrait.noKeywordData')}</div>`;
     }
 
     updatePortraitTrendTabs();
@@ -1195,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function renderPortraitTrend(trend, granularity) {
     if (trend.length === 0) {
-      ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${state.locale === 'en-US' ? 'Not enough time data yet.' : '暂无足够的时间数据。'}</div>`;
+      ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${t('portrait.noTrendData')}</div>`;
       if (state.portraitChart) {
         state.portraitChart.dispose();
         state.portraitChart = null;
@@ -1206,7 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await loadEcharts();
     } catch (error) {
-      ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${state.locale === 'en-US' ? 'Failed to load chart library.' : '图表库加载失败。'}</div>`;
+      ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${t('portrait.chartLoadFailed')}</div>`;
       return;
     }
 
@@ -1236,9 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formatter: (params) => {
           const point = params[0];
           const unit = granularity === 'year' ? t('common.year') : granularity === 'month' ? t('common.month') : t('common.day');
-          return state.locale === 'en-US'
-            ? `${point.axisValue}<br/>${point.data} bookmarks / ${unit}`
-            : `${point.axisValue}<br/>${point.data} 条书签 / ${unit}`;
+          return t('portrait.trendTooltip', { x: point.axisValue, n: point.data, u: unit });
         }
       },
       xAxis: {
@@ -1304,7 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderPortraitFolders(folders) {
     if (folders.length === 0) {
-      ui.portraitFolderList.innerHTML = `<div class="result-empty-state">${state.locale === 'en-US' ? 'No folder ranking data yet.' : '暂无文件夹排行数据。'}</div>`;
+      ui.portraitFolderList.innerHTML = `<div class="result-empty-state">${t('portrait.noFolderData')}</div>`;
       return;
     }
 
@@ -1316,13 +975,13 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="portrait-folder-meta">${escapeHtml(folder.path.join(' / '))}</div>
         </div>
         <div class="portrait-folder-count">${folder.count}</div>
-        <button class="portrait-inline-action" type="button" data-folder="${escapeHtml(folder.title)}">${state.locale === 'en-US' ? 'View' : '查看'}</button>
+        <button class="portrait-inline-action" type="button" data-folder="${escapeHtml(folder.title)}">${t('portrait.view')}</button>
       </div>
     `).join('');
     ui.portraitFolderList.querySelectorAll('[data-folder]').forEach((button) => {
       button.addEventListener('click', () => {
         const title = button.dataset.folder || '';
-        focusManageView(title, title ? (state.locale === 'en-US' ? `Focused on folder "${title}"` : `已定位到文件夹“${title}”`) : (state.locale === 'en-US' ? 'Switched to bookmark management' : '已切换到书签整理'));
+        focusManageView(title, title ? t('portrait.focusFolder', { q: title }) : t('portrait.switchedToManage'));
       });
     });
   }
@@ -1349,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ui.portraitShareTags) {
       ui.portraitShareTags.innerHTML = stats.tags.length > 0
         ? stats.tags.map((tag) => `<span class="portrait-share-tag">${escapeHtml(tag)}</span>`).join('')
-        : `<span class="portrait-share-tag">${state.locale === 'en-US' ? 'Still organizing' : '持续整理中'}</span>`;
+        : `<span class="portrait-share-tag">${t('portrait.stillOrganizing')}</span>`;
     }
   }
 
@@ -1365,17 +1024,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const text = [
-      `我的书签洞察：${stats.level}`,
+      `${t('portrait.shareTitle')}${stats.level}`,
       stats.headline,
-      `总书签 ${stats.totalBookmarks} / 唯一域名 ${stats.uniqueDomains} / 组织分 ${stats.organizationScore} / 收藏天数 ${stats.collectionDays}`,
-      `兴趣标签：${stats.tags.join('、') || '持续整理中'}`
+      t('portrait.shareStats', { a: stats.totalBookmarks, b: stats.uniqueDomains, c: stats.organizationScore, d: stats.collectionDays }),
+      `${t('portrait.shareTagsLabel')}${stats.tags.join(state.locale === 'en-US' ? ', ' : '、') || t('portrait.stillOrganizing')}`
     ].join('\n');
 
     try {
       await navigator.clipboard.writeText(text);
-      showToast('画像摘要已复制', 'success');
+      showToast(t('toast.summaryCopied'), 'success');
     } catch (error) {
-      showToast('复制失败', 'error');
+      showToast(t('toast.copyFailed'), 'error');
     }
   }
 
@@ -1402,7 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await loadBookmarks();
       await syncScanStorageWithTree();
       await loadStoredScanResults();
-      showToast('扫描统计已刷新', 'success');
+      showToast(t('toast.scanStatsRefreshed'), 'success');
     } finally {
       ui.refreshScanStatsBtn.disabled = false;
     }
@@ -1458,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.pauseBtn.classList.remove('hidden');
     ui.stopBtn.classList.remove('hidden');
     ui.startScanBtn.disabled = true;
-    ui.scanStatusText.textContent = '正在快速扫描...';
+    ui.scanStatusText.textContent = t('scan.scanningNow');
     ui.scannedCount.textContent = '0';
     ui.scanInvalidCount.textContent = '0';
     ui.scanDuration.textContent = '0s';
@@ -1466,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderScanResults();
 
     if (bookmarks.length === 0) {
-      finishScan('没有可扫描的书签', 'warning');
+      finishScan(t('scan.noScannableBookmarks'), 'warning');
       return;
     }
 
@@ -1564,22 +1223,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function buildScanSummary(invalidCount, errorCount) {
     if (errorCount >= state.scanController.total && state.scanController.total > 0) {
-      return `扫描异常，${errorCount} 条链接未完成校验`;
+      return t('scan.summaryErrors', { n: errorCount });
     }
 
     if (invalidCount > 0 && errorCount > 0) {
-      return `扫描完成，发现 ${invalidCount} 个失效书签，另有 ${errorCount} 条校验异常`;
+      return t('scan.summaryInvalidAndErrors', { a: invalidCount, b: errorCount });
     }
 
     if (invalidCount > 0) {
-      return `扫描完成，发现 ${invalidCount} 个失效书签`;
+      return t('scan.summaryInvalid', { n: invalidCount });
     }
 
     if (errorCount > 0) {
-      return `扫描完成，但有 ${errorCount} 条链接校验异常`;
+      return t('scan.summaryErrorsOnly', { n: errorCount });
     }
 
-    return '扫描完成，未发现失效书签';
+    return t('scan.summaryClean');
   }
 
   function togglePauseScan() {
@@ -1623,7 +1282,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const elapsed = Math.floor((Date.now() - state.scanController.startTime) / 1000);
     const minutes = Math.floor(elapsed / 60);
     const seconds = elapsed % 60;
-    ui.scanDuration.textContent = minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+    ui.scanDuration.textContent = minutes > 0 ? t('scan.durationMinSec', { m: minutes, s: seconds }) : t('scan.durationSec', { s: seconds });
   }
 
   function updateProgressRing(percent) {
@@ -1664,9 +1323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.invalidCountBadge.textContent = String(invalidBookmarks.length);
     ui.emptyFolderCountBadge.textContent = String(state.emptyFolders.length);
     ui.resultsMeta.textContent = state.scanTime
-      ? (state.locale === 'en-US'
-        ? `Last scan: ${new Date(state.scanTime).toLocaleString('en-US')}`
-        : `最近扫描时间：${new Date(state.scanTime).toLocaleString('zh-CN')}`)
+      ? `${t('scan.lastScanPrefix')}${new Date(state.scanTime).toLocaleString(state.locale)}`
       : t('scan.notStarted');
 
     renderScanList(ui.invalidLinksList, invalidBookmarks, 'bookmark');
@@ -1678,13 +1335,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.deleteSelectedScanBtn.disabled = state.selectedScanIds.size === 0;
     ui.deleteSelectedEmptyFoldersBtn.disabled = state.selectedEmptyFolderIds.size === 0;
     ui.selectAllEmptyFoldersBtn.textContent = state.emptyFolders.length > 0 && state.emptyFolders.every((folder) => state.selectedEmptyFolderIds.has(folder.id))
-      ? (state.locale === 'en-US' ? 'Clear All' : '取消全选')
+      ? t('scan.deselectAllEmptyFolders')
       : t('scan.selectAllEmptyFolders');
   }
 
   function renderScanList(container, items, type) {
     if (items.length === 0) {
-      container.innerHTML = `<div class="result-empty-state">${state.locale === 'en-US' ? 'No items' : '暂无内容'}</div>`;
+      container.innerHTML = `<div class="result-empty-state">${t('scan.noItems')}</div>`;
       return;
     }
 
@@ -1703,16 +1360,16 @@ document.addEventListener('DOMContentLoaded', () => {
               ? '<span class="item-avatar item-avatar-folder">📁</span>'
               : '<img class="item-favicon" alt="" loading="lazy">'}
             <div class="scan-result-title-wrap">
-              <div class="scan-result-title">${escapeHtml(item.title || (state.locale === 'en-US' ? 'Untitled' : '未命名'))}</div>
+              <div class="scan-result-title">${escapeHtml(item.title || t('scan.untitled'))}</div>
               ${type === 'bookmark' ? `<div class="scan-result-domain">${escapeHtml(item.domain || getDomain(item.url))}</div>` : ''}
             </div>
           </div>
-          <div class="scan-result-meta">${escapeHtml(type === 'folder' ? item.path.join(' / ') : `${item.domain || getDomain(item.url)} · ${item.path.join(' / ') || (state.locale === 'en-US' ? 'Root' : '根目录')}`)}</div>
+          <div class="scan-result-meta">${escapeHtml(type === 'folder' ? item.path.join(' / ') : `${item.domain || getDomain(item.url)} · ${item.path.join(' / ') || t('scan.root')}`)}</div>
         </div>
         <div class="scan-result-actions">
-          ${type === 'bookmark' ? `<button class="btn btn-ghost btn-sm result-open-btn" type="button">${state.locale === 'en-US' ? 'Open' : '打开'}</button>` : ''}
-          <button class="btn btn-secondary btn-sm result-manage-btn" type="button">${state.locale === 'en-US' ? 'Manage' : '去整理'}</button>
-          <button class="btn btn-danger btn-sm result-delete-btn" type="button">${state.locale === 'en-US' ? 'Delete' : '删除'}</button>
+          ${type === 'bookmark' ? `<button class="btn btn-ghost btn-sm result-open-btn" type="button">${t('manage.open')}</button>` : ''}
+          <button class="btn btn-secondary btn-sm result-manage-btn" type="button">${t('scan.goManage')}</button>
+          <button class="btn btn-danger btn-sm result-delete-btn" type="button">${t('manage.delete')}</button>
         </div>
       `;
 
@@ -1773,12 +1430,12 @@ document.addEventListener('DOMContentLoaded', () => {
           await loadBookmarks();
           await persistScanResults();
           await loadStoredScanResults();
-          showToast(state.locale === 'en-US' ? 'Invalid bookmark deleted' : '已删除失效书签', 'error');
+          showToast(t('scan.invalidBookmarkDeleted'), 'error');
         } else {
           state.selectedEmptyFolderIds.delete(item.id);
           await removeFoldersByIds([item.id]);
           renderScanResults();
-          showToast(state.locale === 'en-US' ? 'Empty folder deleted' : '已删除空文件夹', 'error');
+          showToast(t('scan.emptyFolderDeleted'), 'error');
         }
       });
 
@@ -1789,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function toggleSelectAllInvalid() {
     const ids = Object.keys(state.invalidLinksMap);
     if (ids.length === 0) {
-      showToast(state.locale === 'en-US' ? 'There are no issue bookmarks right now.' : '当前没有问题书签', 'warning');
+      showToast(t('scan.noIssueBookmarks'), 'warning');
       return;
     }
 
@@ -1807,11 +1464,11 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteSelectedScanResults() {
     const ids = Array.from(state.selectedScanIds);
     if (ids.length === 0) {
-      showToast(state.locale === 'en-US' ? 'Select invalid bookmarks to delete first.' : '请先选择要删除的失效书签', 'warning');
+      showToast(t('scan.selectInvalidFirst'), 'warning');
       return;
     }
 
-    if (!confirm(state.locale === 'en-US' ? `Delete ${ids.length} selected invalid bookmarks?` : `确定要删除选中的 ${ids.length} 个失效书签吗？`)) {
+    if (!confirm(t('scan.confirmDeleteInvalid', { n: ids.length }))) {
       return;
     }
 
@@ -1819,7 +1476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadBookmarks();
     await persistScanResults();
     await loadStoredScanResults();
-    showToast(state.locale === 'en-US' ? `Deleted ${ids.length} invalid bookmarks` : `已删除 ${ids.length} 个失效书签`, 'error');
+    showToast(t('scan.invalidDeleted', { n: ids.length }), 'error');
   }
 
   async function clearStoredScanResults() {
@@ -1831,7 +1488,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderScanResults();
     renderManageTree();
     updateOverviewStats();
-    showToast(state.locale === 'en-US' ? 'Scan results cleared' : '已清空扫描结果', 'success');
+    showToast(t('toast.scanResultsCleared'), 'success');
   }
 
   async function refreshBookmarks() {
@@ -1839,7 +1496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await loadBookmarks();
       await loadStoredScanResults();
-      showToast(state.locale === 'en-US' ? 'Bookmarks refreshed' : '书签列表已刷新', 'success');
+      showToast(t('manage.bookmarksRefreshed'), 'success');
     } finally {
       ui.refreshBtn.disabled = false;
     }
@@ -1849,7 +1506,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.bookmarkTree.innerHTML = '';
 
     if (state.rootNodes.length === 0) {
-      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${state.locale === 'en-US' ? 'No bookmarks yet.' : '暂无书签。'}</div>`;
+      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${t('manage.noBookmarks')}</div>`;
       updateManageToolbar();
       return;
     }
@@ -1866,7 +1523,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (renderedCount === 0) {
-      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${state.locale === 'en-US' ? 'No bookmarks match the current filter.' : '当前筛选条件下没有匹配书签。'}</div>`;
+      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${t('manage.noMatchingBookmarks')}</div>`;
     } else {
       ui.bookmarkTree.appendChild(fragment);
     }
@@ -1979,18 +1636,18 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="folder-toggle-icon">▸</span>
           <span class="item-avatar item-avatar-folder">📁</span>
           ${isEditing
-            ? `<span class="rename-editor rename-editor-inline"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${state.locale === 'en-US' ? 'Edit folder name' : '编辑文件夹名称'}"></span>`
-            : `<span class="folder-title">${escapeHtml(folder?.title || (state.locale === 'en-US' ? 'Untitled Folder' : '未命名文件夹'))}</span>`}
+            ? `<span class="rename-editor rename-editor-inline"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${t('manage.editFolderName')}"></span>`
+            : `<span class="folder-title">${escapeHtml(folder?.title || t('manage.untitledFolder'))}</span>`}
           <span class="folder-meta">${escapeHtml((folder?.path || []).join(' / '))}</span>
         </span>
         <span class="folder-side">
-          ${isEmptyFolder ? `<span class="bookmark-chip bookmark-chip-warning">${state.locale === 'en-US' ? 'Empty Folder' : '空文件夹'}</span>` : ''}
+          ${isEmptyFolder ? `<span class="bookmark-chip bookmark-chip-warning">${t('manage.emptyFolderChip')}</span>` : ''}
           <span class="folder-count">${childCount}</span>
           <span class="folder-actions">
             ${isEditing
-              ? `<button class="btn-action btn-save" type="button">${state.locale === 'en-US' ? 'Save' : '保存'}</button><button class="btn-action btn-cancel" type="button">${state.locale === 'en-US' ? 'Cancel' : '取消'}</button>`
-              : `<button class="btn-action btn-select-folder" type="button" ${hasDirectBookmarks ? '' : 'disabled'} title="${hasDirectBookmarks ? (state.locale === 'en-US' ? `Select ${directBookmarkIds.length} direct bookmarks in this folder` : `选中当前文件夹下的 ${directBookmarkIds.length} 条直属书签`) : (state.locale === 'en-US' ? 'No selectable bookmarks in this folder' : '当前文件夹下没有可选书签')}">${hasDirectBookmarks && directBookmarkIds.every((id) => state.selectedManageIds.has(id)) ? (state.locale === 'en-US' ? 'Clear Selection' : '取消选择') : (state.locale === 'en-US' ? 'Select Bookmarks' : '选中书签')}</button><button class="btn-action btn-create" type="button">${state.locale === 'en-US' ? 'New Folder' : '新建文件夹'}</button><button class="btn-action btn-rename" type="button">${state.locale === 'en-US' ? 'Rename' : '重命名'}</button>`}
-            ${isEmptyFolder ? `<button class="btn-action btn-delete" type="button">${state.locale === 'en-US' ? 'Delete' : '删除'}</button>` : ''}
+              ? `<button class="btn-action btn-save" type="button">${t('manage.save')}</button><button class="btn-action btn-cancel" type="button">${t('manage.cancel')}</button>`
+              : `<button class="btn-action btn-select-folder" type="button" ${hasDirectBookmarks ? '' : 'disabled'} title="${hasDirectBookmarks ? t('manage.selectFolderBookmarksTitle', { n: directBookmarkIds.length }) : t('manage.noSelectableBookmarks')}">${hasDirectBookmarks && directBookmarkIds.every((id) => state.selectedManageIds.has(id)) ? t('manage.clearFolderSelection') : t('manage.selectFolderBookmarks')}</button><button class="btn-action btn-create" type="button">${t('manage.newFolder')}</button><button class="btn-action btn-rename" type="button">${t('manage.rename')}</button>`}
+            ${isEmptyFolder ? `<button class="btn-action btn-delete" type="button">${t('manage.delete')}</button>` : ''}
           </span>
         </span>
       `;
@@ -2058,7 +1715,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       header.querySelector('.btn-rename')?.addEventListener('click', (event) => {
         event.stopPropagation();
-        startInlineRename('folder', node.id, folder?.title || (state.locale === 'en-US' ? 'Untitled Folder' : '未命名文件夹'));
+        startInlineRename('folder', node.id, folder?.title || t('manage.untitledFolder'));
       });
       header.querySelector('.btn-create')?.addEventListener('click', async (event) => {
         event.stopPropagation();
@@ -2118,29 +1775,29 @@ document.addEventListener('DOMContentLoaded', () => {
     article.draggable = !isEditing;
     article.innerHTML = `
       <div class="bookmark-select-cell">
-        <input type="checkbox" class="bookmark-checkbox" ${state.selectedManageIds.has(bookmark.id) ? 'checked' : ''} aria-label="${state.locale === 'en-US' ? `Select ${escapeHtml(bookmark.title)}` : `选择 ${escapeHtml(bookmark.title)}`}">
+        <input type="checkbox" class="bookmark-checkbox" ${state.selectedManageIds.has(bookmark.id) ? 'checked' : ''} aria-label="${escapeHtml(t('manage.selectBookmarkAria', { t: bookmark.title }))}">
       </div>
       <div class="bookmark-drag-handle" aria-hidden="true" title="${escapeHtml(getBookmarkDragHint(bookmark.id))}">⋮⋮</div>
       <div class="bookmark-content">
         <div class="bookmark-content-top">
           <img class="bookmark-favicon bookmark-favicon-lg" alt="" loading="lazy">
           ${isEditing
-            ? `<label class="rename-editor"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${state.locale === 'en-US' ? 'Edit bookmark name' : '编辑书签名称'}"></label>`
+            ? `<label class="rename-editor"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${t('manage.editBookmarkName')}"></label>`
             : `<div class="bookmark-title">${escapeHtml(bookmark.title)}</div>`}
-          ${state.invalidLinksMap[bookmark.id] ? `<span class="bookmark-chip bookmark-chip-danger">${state.locale === 'en-US' ? 'Invalid' : '失效'}</span>` : ''}
+          ${state.invalidLinksMap[bookmark.id] ? `<span class="bookmark-chip bookmark-chip-danger">${t('manage.invalidChip')}</span>` : ''}
         </div>
         <div class="bookmark-url">${escapeHtml(bookmark.url)}</div>
         <div class="bookmark-meta-line">
           <span class="bookmark-domain">${escapeHtml(bookmark.domain)}</span>
-          <span class="bookmark-path">${escapeHtml(bookmark.path.join(' / ') || (state.locale === 'en-US' ? 'Root' : '根目录'))}</span>
+          <span class="bookmark-path">${escapeHtml(bookmark.path.join(' / ') || t('manage.root'))}</span>
         </div>
       </div>
       <div class="bookmark-actions">
-        <button class="btn-action btn-open" type="button">${state.locale === 'en-US' ? 'Open' : '打开'}</button>
+        <button class="btn-action btn-open" type="button">${t('manage.open')}</button>
         ${isEditing
-          ? `<button class="btn-action btn-save" type="button">${state.locale === 'en-US' ? 'Save' : '保存'}</button><button class="btn-action btn-cancel" type="button">${state.locale === 'en-US' ? 'Cancel' : '取消'}</button>`
-          : `<button class="btn-action btn-rename" type="button">${state.locale === 'en-US' ? 'Rename' : '重命名'}</button>`}
-        <button class="btn-action btn-delete" type="button">${state.locale === 'en-US' ? 'Delete' : '删除'}</button>
+          ? `<button class="btn-action btn-save" type="button">${t('manage.save')}</button><button class="btn-action btn-cancel" type="button">${t('manage.cancel')}</button>`
+          : `<button class="btn-action btn-rename" type="button">${t('manage.rename')}</button>`}
+        <button class="btn-action btn-delete" type="button">${t('manage.delete')}</button>
       </div>
       <div class="drop-indicator" aria-hidden="true"></div>
     `;
@@ -2173,13 +1830,13 @@ document.addEventListener('DOMContentLoaded', () => {
       cancelInlineRename();
     });
     article.querySelector('.btn-delete').addEventListener('click', async () => {
-      if (!confirm(`确定要删除 “${bookmark.title}” 吗？`)) {
+      if (!confirm(t('manage.confirmDeleteBookmark', { t: bookmark.title }))) {
         return;
       }
       await removeBookmarksByIds([bookmark.id], true);
       await loadBookmarks();
       await loadStoredScanResults();
-      showToast('书签已删除', 'error');
+      showToast(t('manage.bookmarkDeleted'), 'error');
     });
     article.querySelector('.rename-input')?.addEventListener('input', (event) => {
       if (state.editingNode) {
@@ -2272,15 +1929,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function getManageFilterLabel() {
     switch (state.manageFilter) {
       case 'duplicates':
-        return state.locale === 'en-US' ? 'Filter: Duplicates' : '筛选：重复链接';
+        return t('manage.filterDuplicates');
       case 'added_before_180d':
-        return state.locale === 'en-US' ? 'Filter: Added Before 6 Months' : '筛选：半年前添加';
+        return t('manage.filterAddedBefore180');
       case 'added_before_365d':
-        return state.locale === 'en-US' ? 'Filter: Added Before 1 Year' : '筛选：一年前添加';
+        return t('manage.filterAddedBefore365');
       case 'unused_180d':
-        return state.locale === 'en-US' ? 'Filter: Not Opened via Bookmark in 6 Months' : '筛选：最近半年未打开';
+        return t('manage.filterUnused180');
       case 'unused_365d':
-        return state.locale === 'en-US' ? 'Filter: Not Opened via Bookmark in 1 Year' : '筛选：最近一年未打开';
+        return t('manage.filterUnused365');
       default:
         return t('manage.filterAll');
     }
@@ -2308,8 +1965,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function openLargestFolderFromPortrait() {
     const title = state.portraitStats?.largestFolder?.title;
     focusManageView(title || '', title
-      ? (state.locale === 'en-US' ? `Focused on folders related to "${title}"` : `已定位到与“${title}”相关的目录`)
-      : (state.locale === 'en-US' ? 'Switched to bookmark management' : '已切换到书签整理'));
+      ? t('portrait.focusFoldersRelated', { q: title })
+      : t('portrait.switchedToManage'));
   }
 
   function openDuplicateBookmarksFromPortrait() {
@@ -2319,7 +1976,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     state.searchTerm = '';
     setManageFilter('duplicates');
-    showToast(state.locale === 'en-US' ? 'Duplicate links are filtered. You can continue organizing or deleting them.' : '已筛选出重复链接，您可以继续整理或删除', 'info');
+    showToast(t('toast.duplicatesFiltered'), 'info');
   }
 
   function openEmptyFoldersFromPortrait() {
@@ -2327,7 +1984,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.setTimeout(() => {
       ui.emptyFoldersList?.closest('.result-column')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 120);
-    showToast(state.locale === 'en-US' ? 'Switched to the empty-folder results section.' : '已切换到空文件夹结果区', 'info');
+    showToast(t('toast.switchedToEmptyFolders'), 'info');
   }
 
   function openDeepFoldersFromPortrait() {
@@ -2340,21 +1997,21 @@ document.addEventListener('DOMContentLoaded', () => {
     state.isExpandedByDefault = true;
     state.expandedFolderIds = new Set(state.folderMap.keys());
     renderManageTree();
-    showToast(state.locale === 'en-US' ? 'Expanded folders for easier inspection of deeper levels.' : '已展开目录，方便查看较深层级的文件夹结构', 'info');
+    showToast(t('manage.expandFoldersToast'), 'info');
   }
 
   function openBookmarkFromScan(item) {
     const query = item.title || item.domain || '';
     focusManageView(query, query
-      ? (state.locale === 'en-US' ? `Focused on bookmarks related to "${query}"` : `已定位到与“${query}”相关的书签`)
-      : (state.locale === 'en-US' ? 'Switched to bookmark management' : '已切换到书签整理'));
+      ? t('portrait.focusBookmarks', { q: query })
+      : t('portrait.switchedToManage'));
   }
 
   function openFolderFromScan(item) {
     const query = item.title || '';
     focusManageView(query, query
-      ? (state.locale === 'en-US' ? `Focused on folder "${query}"` : `已定位到文件夹“${query}”`)
-      : (state.locale === 'en-US' ? 'Switched to bookmark management' : '已切换到书签整理'));
+      ? t('portrait.focusFolder', { q: query })
+      : t('portrait.switchedToManage'));
   }
 
   function focusManageView(query, message) {
@@ -2388,24 +2045,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return t('manage.selectionNoneHint');
     }
     if (selectedCount === 1) {
-      return state.locale === 'en-US'
-        ? '1 bookmark selected. Drag it into a folder to move.'
-        : '已选 1 个书签，可拖到文件夹中移动';
+      return t('manage.selectionOne');
     }
-    return state.locale === 'en-US'
-      ? `${selectedCount} bookmarks selected. Drag any selected item to move them together.`
-      : `已选 ${selectedCount} 个书签，可拖动其中任意一条一起移动`;
+    return t('manage.selectionMany', { n: selectedCount });
   }
 
   function getBookmarkDragHint(bookmarkId) {
     if (state.selectedManageIds.has(bookmarkId) && state.selectedManageIds.size > 1) {
-      return state.locale === 'en-US'
-        ? `Drag to move ${state.selectedManageIds.size} selected bookmarks together`
-        : `拖动可一起移动 ${state.selectedManageIds.size} 个已选书签`;
+      return t('manage.dragHintGroup', { n: state.selectedManageIds.size });
     }
-    return state.locale === 'en-US'
-      ? 'Drag to reorder, or drop into a folder to move'
-      : '拖动可调整位置，或拖到文件夹中移动';
+    return t('manage.dragHintSingle');
   }
 
   function selectFolderBookmarks(bookmarkIds, triggerButton) {
@@ -2425,15 +2074,11 @@ document.addEventListener('DOMContentLoaded', () => {
     bookmarkIds.forEach((id) => syncBookmarkSelectionUi(id));
     if (triggerButton instanceof HTMLElement) {
       triggerButton.textContent = allSelected
-        ? (state.locale === 'en-US' ? 'Select Bookmarks' : '选中书签')
-        : (state.locale === 'en-US' ? 'Clear Selection' : '取消选择');
+        ? t('manage.selectFolderBookmarks')
+        : t('manage.clearFolderSelection');
       triggerButton.title = allSelected
-        ? (state.locale === 'en-US'
-          ? `Select ${bookmarkIds.length} direct bookmarks in this folder`
-          : `选中当前文件夹下的 ${bookmarkIds.length} 条直属书签`)
-        : (state.locale === 'en-US'
-          ? `Clear ${bookmarkIds.length} direct bookmarks selected in this folder`
-          : `取消当前文件夹下的 ${bookmarkIds.length} 条直属书签`);
+        ? t('manage.selectFolderBookmarksTitle', { n: bookmarkIds.length })
+        : t('manage.clearFolderSelectionTitle', { n: bookmarkIds.length });
     }
   }
 
@@ -2449,12 +2094,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const selectedCount = state.selectedManageIds.size;
     ui.manageTipCopy.textContent = selectedCount > 1
-      ? (state.locale === 'en-US'
-        ? `${selectedCount} bookmarks selected. Drag any selected item to move them together into a folder or target position.`
-        : `提示：已选 ${selectedCount} 个书签，拖动其中任意一条即可一起移动到文件夹或目标位置。`)
-      : (state.locale === 'en-US'
-        ? 'Tip: drag items directly to reorder. After selecting multiple bookmarks, drag any selected one to move them together.'
-        : '提示：支持直接拖拽排序；勾选多条后，拖动其中任意一条即可一起移动。');
+      ? t('manage.tipMulti', { n: selectedCount })
+      : t('manage.tipSingle');
     ui.manageTipBanner.classList.remove('hidden');
   }
 
@@ -2536,7 +2177,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.generateAiPlanBtn.disabled = isBusy || Boolean(state.aiUsageError) || (state.aiUsage?.remaining ?? 1) <= 0;
     ui.generateAiPlanBtn.classList.toggle('is-loading', state.aiPlan.status === 'loading');
     ui.generateAiPlanBtn.innerHTML = state.aiPlan.status === 'loading'
-      ? `<span class="btn-spinner" aria-hidden="true"></span><span>${state.locale === 'en-US' ? 'Working...' : '整理中...'}</span>`
+      ? `<span class="btn-spinner" aria-hidden="true"></span><span>${t('ai.working')}</span>`
       : `<span>${t('ai.generate')}</span>`;
     const canApply = canApplyCurrentAiPlan(validCount);
     ui.applyAiPlanBtn.disabled = !canApply || isBusy;
@@ -2552,17 +2193,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return state.aiUsageError;
     }
     if (!state.aiUsage) {
-      return state.locale === 'en-US' ? 'Loading today’s AI usage quota...' : '正在读取今日 AI 整理额度...';
+      return t('ai.loadingUsage');
     }
     const { remaining, limit, used } = state.aiUsage;
     if (remaining <= 0) {
-      return state.locale === 'en-US'
-        ? `Today’s AI quota is used up (${used}/${limit}). Please try again tomorrow.`
-        : `今日 AI 整理次数已用完（${used}/${limit}），请明天再试。`;
+      return t('ai.quotaExhausted', { used, limit });
     }
-    return state.locale === 'en-US'
-      ? `${remaining} AI requests remaining today (${used}/${limit} used).`
-      : `今日 AI 整理剩余 ${remaining} 次（已用 ${used}/${limit}）。`;
+    return t('ai.usageRemaining', { remaining, used, limit });
   }
 
   function renderAiUndoButton() {
@@ -2580,10 +2217,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     ui.undoAiPlanBtn.disabled = undo.status === 'undoing';
     ui.undoAiPlanBtn.textContent = undo.status === 'undoing'
-      ? (state.locale === 'en-US' ? 'Undoing...' : '撤销中...')
-      : (undo.lastError
-        ? (state.locale === 'en-US' ? 'Retry Undo Latest Apply' : '重试撤销最近一次应用')
-        : t('ai.undoLatest'));
+      ? t('ai.undoing')
+      : (undo.lastError ? t('ai.retryUndoLatest') : t('ai.undoLatest'));
   }
 
   function renderAiHistory() {
@@ -2591,7 +2226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (!state.aiHistory.length) {
-      ui.aiHistoryList.innerHTML = `<div class="ai-empty-state">${state.locale === 'en-US' ? 'Your generated plans will appear here for review later.' : '你生成过的整理方案会保存在这里，方便随时回看。'}</div>`;
+      ui.aiHistoryList.innerHTML = `<div class="ai-empty-state">${t('ai.historyEmpty')}</div>`;
       return;
     }
 
@@ -2608,15 +2243,15 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="ai-history-topline">
             <div class="ai-history-state-tags">
               <span class="ai-history-status status-${escapeHtml(item.status)}">${escapeHtml(getAiHistoryStatusLabel(item.status))}</span>
-              ${isReadonly ? `<span class="ai-history-readonly">${state.locale === 'en-US' ? 'Read Only' : '只读'}</span>` : ''}
+              ${isReadonly ? `<span class="ai-history-readonly">${t('ai.readonly')}</span>` : ''}
             </div>
             <div class="ai-history-side">
               <span class="ai-history-time">${escapeHtml(timeText)}</span>
-              <button class="ai-history-delete" type="button" aria-label="${state.locale === 'en-US' ? 'Delete history item' : '删除历史任务'}" data-ai-history-delete="${escapeHtml(item.id)}">${state.locale === 'en-US' ? 'Delete' : '删除'}</button>
+              <button class="ai-history-delete" type="button" aria-label="${t('ai.deleteHistoryAria')}" data-ai-history-delete="${escapeHtml(item.id)}">${t('manage.delete')}</button>
             </div>
           </div>
-          <div class="ai-history-title">${escapeHtml(item.instruction || (state.locale === 'en-US' ? 'Untitled organize task' : '未命名整理任务'))}</div>
-          <div class="ai-history-meta">${escapeHtml(state.locale === 'en-US' ? `${actionCount} actions · ${validCount} applicable · ${formatAiScopeLabel(item.scopeLabel)}` : `${actionCount} 个动作 · ${validCount} 个可应用 · ${formatAiScopeLabel(item.scopeLabel)}`)}</div>
+          <div class="ai-history-title">${escapeHtml(item.instruction || t('ai.untitledTask'))}</div>
+          <div class="ai-history-meta">${escapeHtml(t('ai.historyMeta', { n: actionCount, v: validCount, s: formatAiScopeLabel(item.scopeLabel) }))}</div>
         </article>
       `;
     }).join('');
@@ -2628,11 +2263,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.aiResultSummary.innerHTML = '';
       }
       const title = state.aiLoadingState.phase === 'generating'
-        ? (state.locale === 'en-US' ? 'AI is generating the result' : 'AI 正在生成结果')
-        : (state.locale === 'en-US' ? 'AI is analyzing bookmark structure' : 'AI 正在分析书签结构');
+        ? t('ai.generatingResult')
+        : t('ai.analyzingStructure');
       const subtitle = state.aiLoadingState.phase === 'generating'
-        ? (state.locale === 'en-US' ? 'Composing structured organize actions...' : '正在合成结构化整理动作...')
-        : (state.locale === 'en-US' ? 'Reading bookmark nodes and path information...' : '正在读取书签节点与路径信息...');
+        ? t('ai.composingActions')
+        : t('ai.readingNodes');
       const existingShell = ui.aiSummaryText.querySelector('.ai-summary-loading');
 
       if (!existingShell) {
@@ -2711,16 +2346,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const parts = [];
     if (counts.create > 0) {
-      parts.push({ label: state.locale === 'en-US' ? 'Create Folders' : '新增文件夹', value: state.locale === 'en-US' ? `${counts.create}` : `${counts.create} 个` });
+      parts.push({ label: t('ai.summaryCreateFolders'), value: t('ai.summaryCount', { n: counts.create }) });
     }
     if (counts.move > 0) {
-      parts.push({ label: state.locale === 'en-US' ? 'Move Bookmarks' : '移动书签', value: state.locale === 'en-US' ? `${counts.move}` : `${counts.move} 条` });
+      parts.push({ label: t('ai.summaryMoveBookmarks'), value: t('ai.summaryCountItems', { n: counts.move }) });
     }
     if (counts.rename > 0) {
-      parts.push({ label: state.locale === 'en-US' ? 'Rename Titles' : '统一标题', value: state.locale === 'en-US' ? `${counts.rename}` : `${counts.rename} 个` });
+      parts.push({ label: t('ai.summaryRenameTitles'), value: t('ai.summaryCount', { n: counts.rename }) });
     }
     if (counts.other > 0) {
-      parts.push({ label: state.locale === 'en-US' ? 'Other Actions' : '其他动作', value: state.locale === 'en-US' ? `${counts.other}` : `${counts.other} 个` });
+      parts.push({ label: t('ai.summaryOtherActions'), value: t('ai.summaryCount', { n: counts.other }) });
     }
 
     ui.aiResultSummary.innerHTML = parts
@@ -2789,17 +2424,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookmarks = Array.isArray(context?.bookmarks) ? context.bookmarks.slice(0, 8) : [];
     if (!bookmarks.length) {
       return [
-        state.locale === 'en-US' ? 'Scanning bookmark titles and folder structure...' : '扫描书签标题与层级结构...',
-        state.locale === 'en-US' ? 'Extracting high-frequency domains and duplicate patterns...' : '提取高频域名与重复模式...',
-        state.locale === 'en-US' ? 'Checking reusable folders and target paths...' : '检查可复用文件夹与目标路径...'
+        t('ai.scanTitles'),
+        t('ai.extractDomains'),
+        t('ai.checkFolders')
       ];
     }
 
     return bookmarks.map((bookmark) => {
       const pathLabel = Array.isArray(bookmark.path) && bookmark.path.length
         ? bookmark.path.slice(-2).join(' / ')
-        : (state.locale === 'en-US' ? 'Uncategorized path' : '未分类路径');
-      const domainLabel = bookmark.url ? getDomain(bookmark.url) : (state.locale === 'en-US' ? 'Local bookmark' : '本地书签');
+        : t('ai.uncategorizedPath');
+      const domainLabel = bookmark.url ? getDomain(bookmark.url) : t('ai.localBookmark');
       return `${bookmark.title}  ·  ${domainLabel}  ·  ${pathLabel}`;
     });
   }
@@ -2807,30 +2442,30 @@ document.addEventListener('DOMContentLoaded', () => {
   function getAiStatusLabel() {
     switch (state.aiPlan.status) {
       case 'loading':
-        return state.locale === 'en-US' ? 'Generating' : '生成中';
+        return t('ai.statusGenerating');
       case 'ready':
-        return state.locale === 'en-US' ? 'Review' : '待确认';
+        return t('ai.statusReview');
       case 'applying':
-        return state.locale === 'en-US' ? 'Applying' : '应用中';
+        return t('ai.statusApplying');
       case 'applied':
-        return state.locale === 'en-US' ? 'Applied' : '已应用';
+        return t('ai.statusApplied');
       case 'error':
-        return state.locale === 'en-US' ? 'Failed' : '生成失败';
+        return t('ai.statusFailedPlan');
       default:
-        return state.locale === 'en-US' ? 'Pending' : '待生成';
+        return t('ai.statusPending');
     }
   }
 
   function getAiHistoryStatusLabel(status) {
     switch (status) {
       case 'applied':
-        return state.locale === 'en-US' ? 'Applied' : '已应用';
+        return t('ai.statusApplied');
       case 'error':
-        return state.locale === 'en-US' ? 'Failed' : '失败';
+        return t('ai.statusFailedShort');
       case 'loading':
-        return state.locale === 'en-US' ? 'Generating' : '生成中';
+        return t('ai.statusGenerating');
       default:
-        return state.locale === 'en-US' ? 'Generated' : '已生成';
+        return t('ai.statusGenerated');
     }
   }
 
@@ -2862,22 +2497,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getAiScopeDescription(bookmarkCount, folderCount) {
-    const suffix = state.locale === 'en-US'
-      ? `This request will send ${bookmarkCount} bookmarks and ${folderCount} folders to AI.`
-      : `本次会发送 ${bookmarkCount} 个书签、${folderCount} 个文件夹给 AI。`;
+    const suffix = t('ai.scopeDescriptionSuffix', { b: bookmarkCount, f: folderCount });
     switch (state.aiScopeMode) {
       case 'filtered':
-        return state.locale === 'en-US'
-          ? `The plan will be generated from the current filtered results in Management. ${suffix}`
-          : `将基于管理页当前筛选结果生成整理方案。${suffix}`;
+        return t('ai.scopeDescFiltered', { suffix });
       case 'selected':
-        return state.locale === 'en-US'
-          ? `The plan will be generated only from your currently selected bookmarks. ${suffix}`
-          : `将只基于你当前选中的书签生成整理方案。${suffix}`;
+        return t('ai.scopeDescSelected', { suffix });
       default:
-        return state.locale === 'en-US'
-          ? `The plan will be generated from all bookmarks. ${suffix}`
-          : `将基于全部书签生成整理方案。${suffix}`;
+        return t('ai.scopeDescAll', { suffix });
     }
   }
 
@@ -2905,7 +2532,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function formatAiHistoryTime(timestamp) {
     if (!timestamp) {
-      return state.locale === 'en-US' ? 'Just now' : '刚刚';
+      return t('ai.justNow');
     }
     const date = new Date(timestamp);
     const now = new Date();
@@ -2913,7 +2540,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const localeTag = state.locale === 'en-US' ? 'en-US' : 'zh-CN';
     const timeText = date.toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit' });
     return sameDay
-      ? (state.locale === 'en-US' ? `Today ${timeText}` : `今天 ${timeText}`)
+      ? t('ai.todayAt', { t: timeText })
       : `${date.getMonth() + 1}/${date.getDate()} ${timeText}`;
   }
 
@@ -2928,7 +2555,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const title = document.createElement('div');
     title.className = 'ai-warning-title';
-    title.textContent = state.locale === 'en-US' ? 'Attention Needed' : '需要留意';
+    title.textContent = t('ai.attentionNeeded');
     ui.aiWarningList.appendChild(title);
 
     state.aiPlan.warnings.forEach((warning) => {
@@ -2943,7 +2570,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.aiActionList.innerHTML = '';
     renderAiActionSummary();
     if (!state.aiPlan.validatedActions.length) {
-      ui.aiActionList.innerHTML = `<div class="ai-empty-state">${state.locale === 'en-US' ? 'Once a plan is generated, every AI step will be listed here.' : '生成方案后，这里会列出 AI 准备执行的每一步。'}</div>`;
+      ui.aiActionList.innerHTML = `<div class="ai-empty-state">${t('ai.actionsEmpty')}</div>`;
       return;
     }
     const groups = groupAiActions(state.aiPlan.validatedActions);
@@ -2960,9 +2587,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="ai-action-group-header">
           <div>
             <div class="ai-action-group-title">${escapeHtml(group.label)}</div>
-            <div class="ai-action-group-meta">${escapeHtml(state.locale === 'en-US' ? `${group.items.length} actions` : `${group.items.length} 条动作`)}</div>
+            <div class="ai-action-group-meta">${escapeHtml(t('ai.groupActions', { n: group.items.length }))}</div>
           </div>
-          ${group.items.length > 4 ? `<button class="btn btn-ghost btn-sm ai-action-group-toggle" type="button" data-ai-group-toggle="${escapeHtml(group.key)}">${expanded ? (state.locale === 'en-US' ? 'Collapse' : '收起') : (state.locale === 'en-US' ? `Show ${hiddenCount} more` : `展开剩余 ${hiddenCount} 条`)}</button>` : ''}
+          ${group.items.length > 4 ? `<button class="btn btn-ghost btn-sm ai-action-group-toggle" type="button" data-ai-group-toggle="${escapeHtml(group.key)}">${expanded ? t('ai.collapse') : t('ai.showMore', { n: hiddenCount })}</button>` : ''}
         </div>
         <div class="ai-action-group-list">
           ${visibleItems.map((item) => renderAiActionItem(item, { completed, readonly })).join('')}
@@ -2983,9 +2610,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="ai-action-meta">${escapeHtml(item.description)}</div>
         </div>
         <div class="ai-action-side">
-          <span class="ai-action-badge status-${completed ? 'complete' : readonly ? 'readonly' : dismissed ? 'dismissed' : item.status}">${escapeHtml(completed ? (state.locale === 'en-US' ? 'Done' : '已完成') : readonly ? (state.locale === 'en-US' ? 'Not Applied' : '未应用') : dismissed ? (state.locale === 'en-US' ? 'Ignored' : '已忽略') : item.badge)}</span>
+          <span class="ai-action-badge status-${completed ? 'complete' : readonly ? 'readonly' : dismissed ? 'dismissed' : item.status}">${escapeHtml(completed ? t('ai.done') : readonly ? t('ai.notApplied') : dismissed ? t('ai.ignored') : item.badge)}</span>
           ${readonly || completed ? '' : `<button class="btn ${dismissed ? 'btn-secondary' : 'btn-ghost'} btn-sm ai-action-toggle-btn" type="button" data-ai-action-toggle="${escapeHtml(item.actionId)}">
-            ${dismissed ? (state.locale === 'en-US' ? 'Restore' : '恢复') : (state.locale === 'en-US' ? 'Ignore' : '忽略这步')}
+            ${dismissed ? t('ai.restore') : t('ai.ignore')}
           </button>`}
         </div>
       </article>
@@ -3004,17 +2631,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const groups = groupAiActions(actions);
     const total = actions.length;
     ui.aiActionSummary.innerHTML = `
-      <div class="ai-summary-chip">${state.locale === 'en-US' ? `${total} actions` : `${total} 个动作`}</div>
+      <div class="ai-summary-chip">${t('ai.groupActions', { n: total })}</div>
       ${groups.map((group) => `<div class="ai-summary-chip">${escapeHtml(group.label)} ${group.items.length}</div>`).join('')}
     `;
   }
 
   function groupAiActions(actions) {
     const definitions = [
-      { key: 'create', label: state.locale === 'en-US' ? 'Create Folders' : '新建文件夹', match: (item) => item.type === 'create_folder' },
-      { key: 'move', label: state.locale === 'en-US' ? 'Move Bookmarks' : '移动书签', match: (item) => item.type === 'move_bookmark' },
-      { key: 'rename', label: state.locale === 'en-US' ? 'Rename' : '重命名', match: (item) => item.type === 'rename_bookmark' || item.type === 'rename_folder' },
-      { key: 'other', label: state.locale === 'en-US' ? 'Other Actions' : '其他动作', match: () => true }
+      { key: 'create', label: t('ai.filterCreate'), match: (item) => item.type === 'create_folder' },
+      { key: 'move', label: t('ai.filterMove'), match: (item) => item.type === 'move_bookmark' },
+      { key: 'rename', label: t('ai.filterRename'), match: (item) => item.type === 'rename_bookmark' || item.type === 'rename_folder' },
+      { key: 'other', label: t('ai.filterOther'), match: () => true }
     ];
     const groups = definitions.map((definition) => ({ ...definition, items: [] }));
     actions.forEach((item) => {
@@ -3088,7 +2715,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     renderAiHistory();
-    showToast(state.locale === 'en-US' ? 'History item deleted' : '历史任务已删除', 'warning');
+    showToast(t('toast.aiHistoryDeleted'), 'warning');
   }
 
   function openAiHistory(historyId) {
@@ -3142,23 +2769,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const instruction = ui.aiInstructionInput.value.trim();
     if (!instruction) {
-      showToast(state.locale === 'en-US' ? 'Tell AI how you want your bookmarks organized first.' : '先告诉 AI 你想怎么整理书签', 'warning');
+      showToast(t('toast.aiRequestRequired'), 'warning');
       return;
     }
     if (instruction.length > 1000) {
-      showToast(state.locale === 'en-US' ? 'Your request can be up to 1000 characters.' : '整理诉求最多输入 1000 字', 'warning');
+      showToast(t('toast.aiRequestTooLong'), 'warning');
       return;
     }
 
     await refreshBookmarkStateForAi();
     const context = collectAiScope();
     if (context.bookmarks.length === 0) {
-      showToast(state.locale === 'en-US' ? 'There are no bookmarks in the current scope. Adjust the filter or choose a different scope first.' : '当前整理范围里没有书签，先调整筛选或重新选择范围', 'warning');
+      showToast(t('toast.aiScopeEmpty'), 'warning');
       return;
     }
     state.aiPlan = {
       status: 'loading',
-      summary: state.locale === 'en-US' ? 'Requesting an organize plan from AI...' : '正在请求 AI 生成整理方案...',
+      summary: t('ai.requestingPlan'),
       warnings: [],
       actions: [],
       validatedActions: [],
@@ -3198,7 +2825,7 @@ document.addEventListener('DOMContentLoaded', () => {
             date: detail.detail.date
           };
           renderAiPlan();
-          throw new Error(`今日 AI 整理次数已达上限（${detail.detail.used}/${detail.detail.limit}）`);
+          throw new Error(t('ai.quotaLimitReached', { used: detail.detail.used, limit: detail.detail.limit }));
         }
         throw new Error(detail?.detail?.message || detail?.detail || `HTTP ${response.status}`);
       }
@@ -3215,7 +2842,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const validatedActions = validateAiActions(normalizedPlan.actions);
       state.aiPlan = {
         status: 'ready',
-        summary: result.summary || (state.locale === 'en-US' ? 'AI has prepared an organize plan. Review it before applying.' : 'AI 已生成整理建议，请确认后再应用。'),
+        summary: result.summary || t('ai.planReadySummary'),
         warnings: [...(Array.isArray(result.warnings) ? result.warnings : []), ...normalizedPlan.warnings],
         actions: normalizedPlan.actions,
         validatedActions,
@@ -3233,7 +2860,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }));
       state.aiUsageError = '';
       renderAiPlan();
-      showToast(state.locale === 'en-US' ? 'Plan generated' : '整理方案已生成', 'success');
+      showToast(t('toast.aiPlanGenerated'), 'success');
     } catch (error) {
       const errorMessage = String(error?.message || error);
       const isFetchError = error instanceof TypeError || /Failed to fetch/i.test(errorMessage);
@@ -3241,8 +2868,8 @@ document.addEventListener('DOMContentLoaded', () => {
       state.aiPlan = {
         status: 'error',
         summary: isFetchError
-          ? (state.locale === 'en-US' ? 'The AI service is temporarily unreachable. Make sure the backend service is running.' : '本地 AI 服务暂时不可连接，请先确认后端服务已经启动。')
-          : (state.locale === 'en-US' ? 'Failed to generate the AI plan. Check the backend endpoint and response format.' : 'AI 整理方案生成失败，请检查后端接口和返回格式。'),
+          ? t('toast.aiUnreachable')
+          : t('toast.aiPlanFailedDetail'),
         warnings: [errorMessage],
         actions: [],
         validatedActions: [],
@@ -3252,9 +2879,7 @@ document.addEventListener('DOMContentLoaded', () => {
         source: 'current'
       };
       if (isFetchError) {
-        state.aiUsageError = state.locale === 'en-US'
-          ? 'The AI service is unavailable. Check the endpoint and make sure the backend service is reachable.'
-          : 'AI 服务暂时不可达，请检查接口地址并确认后端服务可以访问。';
+        state.aiUsageError = t('ai.usageServiceUnavailable');
       }
       await saveAiHistoryEntry(buildAiHistoryEntry({
         id: historyId,
@@ -3263,7 +2888,7 @@ document.addEventListener('DOMContentLoaded', () => {
         plan: state.aiPlan
       }));
       renderAiPlan();
-      showToast(state.locale === 'en-US' ? 'Failed to generate plan' : '整理方案生成失败', 'error');
+      showToast(t('toast.aiPlanFailed'), 'error');
     } finally {
       await refreshAiUsage();
     }
@@ -3282,7 +2907,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (type === 'create_folder') {
         const parentFolder = resolveFolderReference(action.parentId, action.parentPath, virtualFolders);
         if (!parentFolder || !action.title) {
-          validated.push(buildAiValidationResult(actionId, 'invalid', state.locale === 'en-US' ? 'Cannot create folder' : '无法创建文件夹', state.locale === 'en-US' ? 'Missing a valid parent folder or title' : '缺少有效父目录或标题', false, type));
+          validated.push(buildAiValidationResult(actionId, 'invalid', t('ai.cannotCreateFolder'), t('ai.createFolderMissingInfo'), false, type));
           return;
         }
         const nextPath = [...parentFolder.path, action.title];
@@ -3290,12 +2915,8 @@ document.addEventListener('DOMContentLoaded', () => {
         validated.push(buildAiValidationResult(
           actionId,
           'valid',
-          state.locale === 'en-US'
-            ? `${action.autoGenerated ? 'Auto-create folder' : 'Create folder'} "${action.title}"`
-            : `${action.autoGenerated ? '补建文件夹' : '新建文件夹'}「${action.title}」`,
-          state.locale === 'en-US'
-            ? `${action.autoGenerated ? 'Auto-added for a later move, ' : ''}create under ${parentFolder.path.join(' / ')}`
-            : `${action.autoGenerated ? '为后续移动自动补齐，' : ''}创建到 ${parentFolder.path.join(' / ')}`,
+          action.autoGenerated ? t('ai.autoCreateFolderTitle', { t: action.title }) : t('ai.createFolderTitle', { t: action.title }),
+          `${action.autoGenerated ? t('ai.autoAddedForMove') : ''}${t('ai.createFolderDesc', { p: parentFolder.path.join(' / ') })}`,
           true,
           type
         ));
@@ -3305,20 +2926,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (type === 'rename_bookmark') {
         const bookmark = state.bookmarkMap.get(action.bookmarkId);
         if (!bookmark || !action.newTitle) {
-          validated.push(buildAiValidationResult(actionId, 'invalid', state.locale === 'en-US' ? 'Cannot rename bookmark' : '无法重命名书签', state.locale === 'en-US' ? 'Bookmark does not exist or the new title is empty' : '书签不存在或新名称为空', false, type));
+          validated.push(buildAiValidationResult(actionId, 'invalid', t('ai.cannotRenameBookmark'), t('ai.renameBookmarkMissingInfo'), false, type));
           return;
         }
-        validated.push(buildAiValidationResult(actionId, 'valid', state.locale === 'en-US' ? `Rename bookmark "${bookmark.title}"` : `重命名书签「${bookmark.title}」`, state.locale === 'en-US' ? `Change to "${action.newTitle}"` : `改为「${action.newTitle}」`, true, type));
+        validated.push(buildAiValidationResult(actionId, 'valid', t('ai.renameBookmarkTitle', { t: bookmark.title }), t('ai.renameChangeTo', { t: action.newTitle }), true, type));
         return;
       }
 
       if (type === 'rename_folder') {
         const folder = state.folderMap.get(action.folderId);
         if (!folder || !action.newTitle) {
-          validated.push(buildAiValidationResult(actionId, 'invalid', state.locale === 'en-US' ? 'Cannot rename folder' : '无法重命名文件夹', state.locale === 'en-US' ? 'Folder does not exist or the new title is empty' : '文件夹不存在或新名称为空', false, type));
+          validated.push(buildAiValidationResult(actionId, 'invalid', t('ai.cannotRenameFolder'), t('ai.renameFolderMissingInfo'), false, type));
           return;
         }
-        validated.push(buildAiValidationResult(actionId, 'valid', state.locale === 'en-US' ? `Rename folder "${folder.title}"` : `重命名文件夹「${folder.title}」`, state.locale === 'en-US' ? `Change to "${action.newTitle}"` : `改为「${action.newTitle}」`, true, type));
+        validated.push(buildAiValidationResult(actionId, 'valid', t('ai.renameFolderTitle', { t: folder.title }), t('ai.renameChangeTo', { t: action.newTitle }), true, type));
         return;
       }
 
@@ -3326,14 +2947,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const bookmark = state.bookmarkMap.get(action.bookmarkId);
         const targetFolder = resolveFolderReference(action.targetFolderId, action.targetPath, virtualFolders);
         if (!bookmark || !targetFolder) {
-          validated.push(buildAiValidationResult(actionId, 'invalid', state.locale === 'en-US' ? 'Cannot move bookmark' : '无法移动书签', state.locale === 'en-US' ? 'The bookmark or target folder does not exist' : '书签或目标文件夹不存在', false, type));
+          validated.push(buildAiValidationResult(actionId, 'invalid', t('ai.cannotMoveBookmark'), t('ai.moveMissingInfo'), false, type));
           return;
         }
-        validated.push(buildAiValidationResult(actionId, 'valid', state.locale === 'en-US' ? `Move bookmark "${bookmark.title}"` : `移动书签「${bookmark.title}」`, state.locale === 'en-US' ? `Move to ${targetFolder.path.join(' / ')}` : `移动到 ${targetFolder.path.join(' / ')}`, true, type));
+        validated.push(buildAiValidationResult(actionId, 'valid', t('ai.moveBookmarkTitle', { t: bookmark.title }), t('ai.moveTo', { p: targetFolder.path.join(' / ') }), true, type));
         return;
       }
 
-      validated.push(buildAiValidationResult(actionId, 'warning', state.locale === 'en-US' ? `Unsupported action type: ${type}` : `未支持的动作类型：${type}`, state.locale === 'en-US' ? 'This action type will not be executed by the current frontend.' : '当前前端不会执行这类动作', false, type));
+      validated.push(buildAiValidationResult(actionId, 'warning', t('ai.unsupportedType', { t: type }), t('ai.unsupportedDetail'), false, type));
     });
 
     return validated;
@@ -3377,9 +2998,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (autoCreateCount > 0) {
-      warnings.push(state.locale === 'en-US'
-        ? `Automatically added ${autoCreateCount} missing folder-creation steps so move targets exist before moving.`
-        : `已自动补齐 ${autoCreateCount} 个缺失的建文件夹步骤，避免移动时目标目录不存在。`);
+      warnings.push(t('ai.autoCreateWarning', { n: autoCreateCount }));
     }
 
     return { actions: normalized, warnings };
@@ -3446,10 +3065,10 @@ document.addEventListener('DOMContentLoaded', () => {
       description,
       executable,
       badge: status === 'valid'
-        ? (state.locale === 'en-US' ? 'Applicable' : '可应用')
+        ? t('ai.applicable')
         : status === 'invalid'
-          ? (state.locale === 'en-US' ? 'Invalid' : '无效')
-          : (state.locale === 'en-US' ? 'Needs Review' : '待确认')
+          ? t('ai.invalidShort')
+          : t('ai.needsReview')
     };
   }
 
@@ -3487,7 +3106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (executableActions.length === 0) {
-      showToast(state.locale === 'en-US' ? 'There are no applicable AI actions right now.' : '当前没有可应用的 AI 动作', 'warning');
+      showToast(t('toast.aiNoApplicableActions'), 'warning');
       return;
     }
 
@@ -3525,7 +3144,7 @@ document.addEventListener('DOMContentLoaded', () => {
           undoSteps.push({
             type: 'delete_folder',
             folderId: created.id,
-            title: action.title || (state.locale === 'en-US' ? 'Untitled Folder' : '未命名文件夹')
+            title: action.title || t('manage.untitledFolder')
           });
           runtimeFolderPaths.set([...parentFolder.path, action.title].join(' / '), created.id);
           continue;
@@ -3619,12 +3238,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       renderAiPlan();
       focusAiPreviewResults();
-      showToast(state.locale === 'en-US' ? 'AI plan applied' : 'AI 整理方案已应用', 'success');
+      showToast(t('toast.aiPlanApplied'), 'success');
     } catch (error) {
       state.aiPlan.status = 'error';
       state.aiPlan.warnings = [String(error.message || error)];
       renderAiPlan();
-      showToast(state.locale === 'en-US' ? 'Failed to apply AI plan' : '应用 AI 整理方案失败', 'error');
+      showToast(t('toast.aiPlanApplyFailed'), 'error');
     }
   }
 
@@ -3660,9 +3279,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     } catch (error) {
       state.aiUsage = null;
-      state.aiUsageError = state.locale === 'en-US'
-        ? 'The AI service is unavailable. Check the endpoint and backend availability.'
-        : 'AI 服务未连接，请检查接口地址和后端可用性。';
+      state.aiUsageError = t('ai.usageUnreachable');
     }
     renderAiPlan();
   }
@@ -3673,7 +3290,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (undo.historyId !== state.aiHistory[0]?.id || state.aiPlan.historyId !== undo.historyId) {
-      showToast(state.locale === 'en-US' ? 'Only the most recent AI apply supports undo.' : '只有最近一次 AI 应用支持撤销', 'warning');
+      showToast(t('toast.aiUndoOnlyLatest'), 'warning');
       return;
     }
 
@@ -3704,7 +3321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       renderAiPlan();
-      showToast(state.locale === 'en-US' ? 'Undid the latest AI apply' : '已撤销最近一次 AI 应用', 'success');
+      showToast(t('toast.aiUndoDone'), 'success');
       return;
     }
 
@@ -3714,13 +3331,11 @@ document.addEventListener('DOMContentLoaded', () => {
       lastError: failures.join('；')
     };
     state.aiPlan.warnings = [
-      state.locale === 'en-US'
-        ? `${failures.length} undo steps did not complete. Review the result and try again.`
-        : `撤销时有 ${failures.length} 项未完成，请核对结果后重试。`,
+      t('ai.undoWarning', { n: failures.length }),
       ...failures
     ];
     renderAiPlan();
-    showToast(state.locale === 'en-US' ? 'AI undo was not fully completed. Please retry or review manually.' : 'AI 撤销未完全完成，请重试或手动核对', 'warning');
+    showToast(t('toast.aiUndoIncomplete'), 'warning');
   }
 
   function focusAiPreviewResults() {
@@ -3841,18 +3456,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function describeAiUndoFailure(step, error) {
-    const message = String(error?.message || error || '未知错误');
+    const message = String(error?.message || error || t('ai.unknownError'));
     switch (step.type) {
       case 'delete_folder':
-        return `未能删除回滚文件夹“${step.title}”：${message}`;
+        return t('ai.undoFailDeleteFolder', { t: step.title, msg: message });
       case 'rename_bookmark':
-        return `未能恢复书签名称：${message}`;
+        return t('ai.undoFailRestoreBookmarkTitle', { msg: message });
       case 'rename_folder':
-        return `未能恢复文件夹名称：${message}`;
+        return t('ai.undoFailRestoreFolderTitle', { msg: message });
       case 'move_bookmark':
-        return `未能恢复书签原位置：${message}`;
+        return t('ai.undoFailRestorePosition', { msg: message });
       default:
-        return `未能完成撤销步骤：${message}`;
+        return t('ai.undoFailStep', { msg: message });
     }
   }
 
@@ -3939,7 +3554,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectAllVisibleBookmarks() {
     const visibleIds = Array.from(ui.bookmarkTree.querySelectorAll('[data-bookmark-id]')).map((node) => node.dataset.bookmarkId);
     if (visibleIds.length === 0) {
-      showToast('当前视图没有可选书签', 'warning');
+      showToast(t('manage.noVisibleBookmarks'), 'warning');
       return;
     }
 
@@ -3965,17 +3580,17 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteSelectedBookmarks() {
     const ids = Array.from(state.selectedManageIds);
     if (ids.length === 0) {
-      showToast('请先选择要删除的书签', 'warning');
+      showToast(t('manage.selectDeleteFirst'), 'warning');
       return;
     }
-    if (!confirm(`确定要删除选中的 ${ids.length} 个书签吗？`)) {
+    if (!confirm(t('manage.confirmDeleteBookmarks', { n: ids.length }))) {
       return;
     }
 
     await removeBookmarksByIds(ids, true);
     await loadBookmarks();
     await loadStoredScanResults();
-    showToast(`已删除 ${ids.length} 个书签`, 'error');
+    showToast(t('manage.bookmarksDeleted', { n: ids.length }), 'error');
   }
 
   function clearDragState() {
@@ -4107,7 +3722,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await moveBookmarkIdsToFolder(
         state.draggedItem.ids,
         folderId,
-        `已移动 ${state.draggedItem.ids.length} 个书签`
+        t('manage.movedCount', { n: state.draggedItem.ids.length })
       );
       return;
     }
@@ -4118,7 +3733,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      await moveBookmarkIdsToFolder([bookmark.id], folderId, `已移动 ${bookmark.title}`);
+      await moveBookmarkIdsToFolder([bookmark.id], folderId, t('manage.movedTitle', { t: bookmark.title }));
       return;
     }
 
@@ -4147,12 +3762,12 @@ document.addEventListener('DOMContentLoaded', () => {
     state.undoAction = {
       type: 'move',
       payload: previousState,
-      message: `已移动文件夹 ${folder.title}`
+      message: t('manage.movedFolder', { t: folder.title })
     };
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
-    showToast(`已移动文件夹 ${folder.title}`, 'warning');
+    showToast(t('manage.movedFolder', { t: folder.title }), 'warning');
   }
 
   async function moveDraggedBookmarkBefore(targetId) {
@@ -4167,7 +3782,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await moveBookmarkIdsBeforeTarget(
         state.draggedItem.ids,
         targetId,
-        `已调整 ${state.draggedItem.ids.length} 个书签的位置`
+        t('manage.reorderedCount', { n: state.draggedItem.ids.length })
       );
       return;
     }
@@ -4181,7 +3796,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    await moveBookmarkIdsBeforeTarget([dragged.id], targetId, `已调整 ${dragged.title} 的位置`);
+    await moveBookmarkIdsBeforeTarget([dragged.id], targetId, t('manage.reorderedTitle', { t: dragged.title }));
   }
 
   async function removeBookmarksByIds(ids, recordUndo) {
@@ -4217,7 +3832,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.undoAction = {
         type: 'delete',
         payload: snapshot,
-        message: `已删除 ${snapshot.length} 个书签`
+        message: t('manage.bookmarksDeleted', { n: snapshot.length })
       };
     }
   }
@@ -4265,7 +3880,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const trimmedTitle = editingNode.value.trim();
     if (!trimmedTitle) {
-      showToast('名称不能为空', 'warning');
+      showToast(t('manage.nameRequired'), 'warning');
       return;
     }
 
@@ -4297,13 +3912,13 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadBookmarks();
     await loadStoredScanResults({ renderManage: false });
     rerenderManageEntity(editingNode.type, editingNode.id);
-    showToast(editingNode.type === 'bookmark' ? '书签名称已更新' : '文件夹名称已更新', 'success');
+    showToast(editingNode.type === 'bookmark' ? t('manage.bookmarkRenamed') : t('manage.folderRenamed'), 'success');
   }
 
   async function createFolderUnder(parentId) {
     const parentFolder = state.folderMap.get(parentId);
     if (!parentFolder) {
-      showToast('目标文件夹不存在', 'warning');
+      showToast(t('manage.folderNotFound'), 'warning');
       return;
     }
 
@@ -4312,7 +3927,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.bookmarks.create({
         parentId,
         index: insertIndex,
-        title: '新建文件夹'
+        title: t('manage.newFolderDefault')
       }, (node) => {
         if (chrome.runtime.lastError) {
           reject(chrome.runtime.lastError);
@@ -4325,14 +3940,14 @@ document.addEventListener('DOMContentLoaded', () => {
     state.editingNode = {
       type: 'folder',
       id: createdFolder.id,
-      value: createdFolder.title || '新建文件夹'
+      value: createdFolder.title || t('manage.newFolderDefault')
     };
     state.expandedFolderIds.add(parentId);
     state.expandedFolderIds.add(createdFolder.id);
     await loadBookmarks();
     await loadStoredScanResults({ renderManage: false });
     rerenderManageEntity('folder', parentId);
-    showToast('已创建新文件夹', 'success');
+    showToast(t('manage.folderCreated'), 'success');
   }
 
   function focusInlineEditor() {
@@ -4349,21 +3964,21 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteEmptyFolderFromManage(id) {
     const folder = state.emptyFolders.find((item) => item.id === id);
     if (!folder) {
-      showToast('只有空文件夹可以直接删除', 'warning');
+      showToast(t('manage.onlyEmptyFolderDeletable'), 'warning');
       return;
     }
 
-    if (!confirm(`确定要删除空文件夹 “${folder.title}” 吗？`)) {
+    if (!confirm(t('manage.confirmDeleteEmptyFolder', { t: folder.title }))) {
       return;
     }
 
     await removeFoldersByIds([id]);
-    showToast('空文件夹已删除', 'error');
+    showToast(t('manage.emptyFolderDeletedToast'), 'error');
   }
 
   function toggleSelectAllEmptyFolders() {
     if (state.emptyFolders.length === 0) {
-      showToast('当前没有空文件夹', 'warning');
+      showToast(t('manage.noEmptyFolders'), 'warning');
       return;
     }
 
@@ -4381,17 +3996,17 @@ document.addEventListener('DOMContentLoaded', () => {
   async function deleteSelectedEmptyFolders() {
     const ids = Array.from(state.selectedEmptyFolderIds);
     if (ids.length === 0) {
-      showToast('请先选择要删除的空文件夹', 'warning');
+      showToast(t('manage.selectEmptyFolderFirst'), 'warning');
       return;
     }
 
-    if (!confirm(`确定要删除选中的 ${ids.length} 个空文件夹吗？`)) {
+    if (!confirm(t('manage.confirmDeleteEmptyFolders', { n: ids.length }))) {
       return;
     }
 
     await removeFoldersByIds(ids);
     renderScanResults();
-    showToast(`已删除 ${ids.length} 个空文件夹`, 'error');
+    showToast(t('manage.emptyFoldersDeleted', { n: ids.length }), 'error');
   }
 
   async function undoLastAction() {
@@ -4419,7 +4034,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
       }
-      showToast('已撤销删除操作', 'success');
+      showToast(t('manage.undoDeleteDone'), 'success');
     }
 
     if (action.type === 'move') {
@@ -4434,7 +4049,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
       }
-      showToast('已撤销移动操作', 'success');
+      showToast(t('manage.undoMoveDone'), 'success');
     }
 
     await loadBookmarks();
@@ -4564,13 +4179,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function derivePortraitTags(topDomains) {
     const TAG_RULES = [
-      { label: '技术学习', match: ['github.com', 'stackoverflow.com', 'developer.mozilla.org', 'juejin.cn', 'csdn.net', 'npmjs.com', 'gitlab.com'] },
-      { label: '设计灵感', match: ['dribbble.com', 'behance.net', 'figma.com', 'pinterest.com'] },
-      { label: '视频内容', match: ['youtube.com', 'bilibili.com', 'vimeo.com'] },
-      { label: '资讯阅读', match: ['medium.com', 'substack.com', 'theverge.com', '36kr.com', 'huxiu.com', 'sspai.com'] },
-      { label: 'AI 工具', match: ['openai.com', 'anthropic.com', 'huggingface.co', 'replicate.com', 'poe.com'] },
-      { label: '购物决策', match: ['amazon.com', 'taobao.com', 'jd.com', 'tmall.com'] },
-      { label: '社交观察', match: ['x.com', 'twitter.com', 'linkedin.com', 'reddit.com', 'weibo.com', 'zhihu.com'] }
+      { label: t('tags.techLearning'), match: ['github.com', 'stackoverflow.com', 'developer.mozilla.org', 'juejin.cn', 'csdn.net', 'npmjs.com', 'gitlab.com'] },
+      { label: t('tags.designInspiration'), match: ['dribbble.com', 'behance.net', 'figma.com', 'pinterest.com'] },
+      { label: t('tags.videoContent'), match: ['youtube.com', 'bilibili.com', 'vimeo.com'] },
+      { label: t('tags.newsReading'), match: ['medium.com', 'substack.com', 'theverge.com', '36kr.com', 'huxiu.com', 'sspai.com'] },
+      { label: t('tags.aiTools'), match: ['openai.com', 'anthropic.com', 'huggingface.co', 'replicate.com', 'poe.com'] },
+      { label: t('tags.shoppingDecisions'), match: ['amazon.com', 'taobao.com', 'jd.com', 'tmall.com'] },
+      { label: t('tags.socialObservation'), match: ['x.com', 'twitter.com', 'linkedin.com', 'reddit.com', 'weibo.com', 'zhihu.com'] }
     ];
 
     const found = [];

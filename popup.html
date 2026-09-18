@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>智能书签管家</title>
+  <title data-i18n-title="app.title">智能书签管家</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -12,8 +12,8 @@
       <div class="brand">
         <img class="brand-logo" src="icons/icon_128.png" alt="智能书签管家 Logo">
         <div class="brand-text">
-          <div class="brand-name">智能书签管家</div>
-          <div class="brand-tagline">快速扫描与即时整理</div>
+          <div class="brand-name" data-i18n="app.brandName">智能书签管家</div>
+          <div class="brand-tagline" data-i18n="popup.tagline">快速扫描与即时整理</div>
         </div>
       </div>
     </header>
@@ -22,16 +22,16 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value" id="totalCount">—</div>
-          <div class="stat-label">总书签</div>
+          <div class="stat-label" data-i18n="popup.totalBookmarks">总书签</div>
         </div>
         <div class="stat-card">
           <div class="stat-value danger" id="invalidCount">—</div>
-          <div class="stat-label">无效链接</div>
+          <div class="stat-label" data-i18n="popup.invalidLinks">无效链接</div>
         </div>
       </div>
     </section>
 
-    <div id="statusMessage" class="status-message"></div>
+    <div id="statusMessage" class="status-message" role="status" aria-live="polite"></div>
 
     <section id="scanSection" class="scan-section">
       <div class="scan-header">
@@ -43,22 +43,22 @@
           <div class="scan-percentage" id="scanPercent">0%</div>
         </div>
         <div class="scan-info">
-          <div class="scan-title">快速扫描</div>
-          <div class="scan-status-text" id="scanText">检查书签有效性</div>
+          <div class="scan-title" data-i18n="popup.quickScan">快速扫描</div>
+          <div class="scan-status-text" id="scanText" data-i18n="popup.checking">检查书签有效性</div>
         </div>
       </div>
       <div class="scan-stats-row">
         <div class="scan-stat">
           <div class="scan-stat-value" id="scanChecked">0</div>
-          <div class="scan-stat-label">已检查</div>
+          <div class="scan-stat-label" data-i18n="popup.scanned">已检查</div>
         </div>
         <div class="scan-stat">
           <div class="scan-stat-value danger" id="scanInvalid">0</div>
-          <div class="scan-stat-label">无效</div>
+          <div class="scan-stat-label" data-i18n="popup.invalid">无效</div>
         </div>
         <div class="scan-stat">
           <div class="scan-stat-value" id="scanTime">0s</div>
-          <div class="scan-stat-label">耗时</div>
+          <div class="scan-stat-label" data-i18n="popup.elapsed">耗时</div>
         </div>
       </div>
     </section>
@@ -66,42 +66,43 @@
     <section class="actions-section">
       <button id="quickScanBtn" class="btn btn-primary">
         <span class="btn-icon">🔍</span>
-        <span>快速扫描</span>
+        <span data-i18n="popup.quickScan">快速扫描</span>
       </button>
       <button id="openManagerBtn" class="btn btn-accent">
         <span class="btn-icon">📊</span>
-        <span>打开管理器</span>
+        <span data-i18n="popup.openManager">打开管理器</span>
       </button>
       <button id="refreshBtn" class="btn btn-secondary">
         <span class="btn-icon">🔄</span>
-        <span>刷新统计</span>
+        <span data-i18n="popup.refreshStats">刷新统计</span>
       </button>
     </section>
 
     <section id="resultPanel" class="result-panel hidden">
       <div class="result-panel-header">
         <div>
-          <div class="result-panel-title">扫描结果</div>
-          <div class="result-panel-meta" id="resultMeta">暂无最近扫描记录</div>
+          <div class="result-panel-title" data-i18n="popup.resultTitle">扫描结果</div>
+          <div class="result-panel-meta" id="resultMeta" data-i18n="popup.noRecentScan">暂无最近扫描记录</div>
         </div>
         <span class="result-badge" id="selectedCountBadge">0 已选</span>
       </div>
 
       <div class="result-toolbar">
-        <button id="selectAllBtn" class="mini-btn">全选</button>
-        <button id="deleteSelectedBtn" class="mini-btn mini-btn-danger" disabled>删除选中</button>
-        <button id="clearResultsBtn" class="mini-btn">清空结果</button>
+        <button id="selectAllBtn" class="mini-btn" data-i18n="popup.selectAll">全选</button>
+        <button id="deleteSelectedBtn" class="mini-btn mini-btn-danger" disabled data-i18n="popup.deleteSelected">删除选中</button>
+        <button id="clearResultsBtn" class="mini-btn" data-i18n="popup.clearResults">清空结果</button>
       </div>
 
-      <div id="resultEmptyState" class="result-empty-state">最近一次扫描没有发现无效书签。</div>
+      <div id="resultEmptyState" class="result-empty-state" data-i18n="popup.emptyResults">最近一次扫描没有发现无效书签。</div>
       <div id="resultList" class="result-list"></div>
     </section>
 
     <footer class="popup-footer">
-      <div class="version-info">智能书签管家 v1.0.0</div>
+      <div class="version-info" id="versionInfo">智能书签管家</div>
     </footer>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

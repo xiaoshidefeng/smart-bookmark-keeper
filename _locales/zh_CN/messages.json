@@ -1,0 +1,14 @@
+{
+  "extName": {
+    "message": "智能书签管家",
+    "description": "Extension display name"
+  },
+  "extDesc": {
+    "message": "一款用于书签管理和自动检测无效链接的Chrome扩展",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "打开智能书签管家",
+    "description": "Toolbar button tooltip"
+  }
+}

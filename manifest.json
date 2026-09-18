@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "智能书签管家",
-  "version": "1.0.0",
-  "description": "一款用于书签管理和自动检测无效链接的Chrome扩展",
+  "name": "__MSG_extName__",
+  "version": "1.0.1",
+  "description": "__MSG_extDesc__",
+  "default_locale": "zh_CN",
   "permissions": [
     "bookmarks",
     "storage",
-    "tabs",
     "webRequest",
     "favicon"
   ],
@@ -16,7 +16,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "打开智能书签管家",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon_16x16@2x.png",
       "32": "icons/icon_32x32@2x.png",

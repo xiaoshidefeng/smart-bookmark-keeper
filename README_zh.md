@@ -61,6 +61,8 @@
 - `manifest.json`：扩展配置和权限
 - `popup.html` / `popup.js` / `popup.css`：弹窗页面
 - `profile.html` / `profile.js` / `styles.css`：主功能页
+- `i18n.js`：两个页面共用的多语言词典与工具函数
+- `_locales/`：商店级名称/描述本地化（默认 `zh_CN`，含 `en`）
 - `background.js`：后台 service worker
 - `privacy-policy.html`：隐私政策页面
 - `icons/`：扩展图标
@@ -69,12 +71,11 @@
 
 - `bookmarks`
 - `storage`
-- `tabs`
 - `webRequest`
 - `favicon`
 - `host_permissions`
 
-这些权限分别用于书签读写整理、本地设置保存、快速打开链接、显示网站图标，以及校验书签链接是否有效。
+这些权限分别用于书签读写整理、本地设置保存、显示网站图标，以及校验书签链接是否有效。说明：打开管理器或书签链接使用的 `chrome.tabs.create` 不需要 `tabs` 权限。
 
 ## 隐私说明
 

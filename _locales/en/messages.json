@@ -1,0 +1,14 @@
+{
+  "extName": {
+    "message": "Smart Bookmark Keeper",
+    "description": "Extension display name"
+  },
+  "extDesc": {
+    "message": "Manage Chrome bookmarks and automatically detect invalid links",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "Open Smart Bookmark Keeper",
+    "description": "Toolbar button tooltip"
+  }
+}

@@ -27,11 +27,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let invalidBookmarks = [];
   let selectedInvalidIds = new Set();
 
+  const t = (key, params) => window.BK_I18N.t(key, params);
+
   init();
 
-  function init() {
+  async function init() {
+    await window.BK_I18N.initLocale();
+    document.documentElement.lang = window.BK_I18N.getLocale();
+    window.BK_I18N.applyElementTranslations();
     setupEventListeners();
+    setVersionInfo();
     loadStats();
+  }
+
+  function setVersionInfo() {
+    const versionInfo = document.getElementById('versionInfo');
+    if (versionInfo) {
+      versionInfo.textContent = `${t('app.brandName')} v${chrome.runtime.getManifest().version}`;
+    }
   }
 
   function setupEventListeners() {
@@ -47,9 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBtn.disabled = true;
     try {
       await loadStats({ syncStoredResults: true });
-      showStatus('统计已刷新', 'success');
+      showStatus(t('popup.statusRefreshed'), 'success');
     } catch (error) {
-      showStatus('刷新失败', 'error');
+      showStatus(t('popup.statusRefreshFailed'), 'error');
     } finally {
       refreshBtn.disabled = false;
     }
@@ -97,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       renderResultPanel(scanResults?.scanTime || null);
     } catch (error) {
-      showStatus('加载统计数据失败', 'error');
+      showStatus(t('popup.statusLoadFailed'), 'error');
     }
   }
 
@@ -135,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scanChecked.textContent = '0';
     scanInvalid.textContent = '0';
     scanTime.textContent = '0s';
-    scanText.textContent = '检查书签有效性';
+    scanText.textContent = t('popup.checking');
     renderResultPanel(null);
 
     scanDurationInterval = setInterval(() => {
@@ -143,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
       scanTime.textContent = `${elapsed}s`;
     }, 1000);
 
-    showStatus('正在扫描书签...', 'warning');
+    showStatus(t('popup.statusScanning'), 'warning');
 
     try {
       const tree = await getBookmarkTree();
@@ -162,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (bookmarks.length === 0) {
-        showStatus('没有找到可检测的书签', 'warning');
+        showStatus(t('popup.statusNoScannable'), 'warning');
         finishScan();
         return;
       }
@@ -193,12 +206,12 @@ document.addEventListener('DOMContentLoaded', () => {
       renderResultPanel(new Date().toISOString());
 
       if (invalidBookmarks.length > 0) {
-        showStatus(`发现 ${invalidBookmarks.length} 个无效链接`, 'warning');
+        showStatus(t('popup.statusFoundInvalid', { n: invalidBookmarks.length }), 'warning');
       } else {
-        showStatus('所有书签都有效', 'success');
+        showStatus(t('popup.statusAllValid'), 'success');
       }
     } catch (error) {
-      showStatus(`扫描失败: ${error.message}`, 'error');
+      showStatus(`${t('popup.statusScanFailed')}: ${error.message}`, 'error');
     }
 
     finishScan();
@@ -208,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isScanning = false;
     quickScanBtn.disabled = false;
     clearInterval(scanDurationInterval);
-    scanText.textContent = invalidBookmarks.length > 0 ? '已生成待处理结果' : '扫描完成';
+    scanText.textContent = invalidBookmarks.length > 0 ? t('popup.statusResultsReady') : t('popup.statusScanComplete');
     updateProgress(100);
   }
 
@@ -228,15 +241,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (scanTimeIso) {
-      const formattedTime = new Date(scanTimeIso).toLocaleString('zh-CN', {
+      const formattedTime = new Date(scanTimeIso).toLocaleString(window.BK_I18N.getLocale(), {
         month: 'numeric',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       });
-      resultMeta.textContent = `最近扫描: ${formattedTime}`;
+      resultMeta.textContent = `${t('popup.recentScanPrefix')}: ${formattedTime}`;
     } else {
-      resultMeta.textContent = '正在准备结果...';
+      resultMeta.textContent = t('popup.preparingResults');
     }
 
     updateSelectionUi();
@@ -259,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="result-item-title-row">
             <img class="result-item-favicon" alt="" loading="lazy" />
             <div class="result-item-title-wrap">
-              <div class="result-item-title">${escapeHtml(bookmark.title || '未命名书签')}</div>
+              <div class="result-item-title">${escapeHtml(bookmark.title || t('popup.untitled'))}</div>
               <div class="result-item-domain">${escapeHtml(getDomain(bookmark.url))}</div>
             </div>
           </div>
@@ -292,9 +305,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateSelectionUi() {
-    selectedCountBadge.textContent = `${selectedInvalidIds.size} 已选`;
+    selectedCountBadge.textContent = `${selectedInvalidIds.size} ${t('popup.selectedBadge')}`;
     deleteSelectedBtn.disabled = selectedInvalidIds.size === 0;
-    selectAllBtn.textContent = selectedInvalidIds.size === invalidBookmarks.length && invalidBookmarks.length > 0 ? '取消全选' : '全选';
+    selectAllBtn.textContent = selectedInvalidIds.size === invalidBookmarks.length && invalidBookmarks.length > 0 ? t('popup.deselectAll') : t('popup.selectAll');
   }
 
   function toggleSelectAll() {
@@ -314,12 +327,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function deleteSelectedBookmarks() {
     if (selectedInvalidIds.size === 0) {
-      showStatus('请先选择要删除的书签', 'warning');
+      showStatus(t('popup.statusSelectFirst'), 'warning');
       return;
     }
 
     const targets = invalidBookmarks.filter((bookmark) => selectedInvalidIds.has(bookmark.id));
-    if (!confirm(`确定要删除选中的 ${targets.length} 个书签吗？`)) {
+    if (!confirm(t('popup.confirmDeleteSelected', { n: targets.length }))) {
       return;
     }
 
@@ -337,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         deleted += 1;
       } catch (error) {
-        showStatus(`删除失败: ${bookmark.title}`, 'error');
+        showStatus(`${t('popup.statusDeleteFailed')}: ${bookmark.title}`, 'error');
       }
     }
 
@@ -345,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedInvalidIds = new Set(invalidBookmarks.map((bookmark) => bookmark.id));
     await persistScanResults();
     await loadStats();
-    showStatus(`已删除 ${deleted} 个无效书签`, deleted > 0 ? 'success' : 'warning');
+    showStatus(t('popup.statusDeleted', { n: deleted }), deleted > 0 ? 'success' : 'warning');
   }
 
   async function clearStoredResults() {
@@ -353,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedInvalidIds.clear();
     await new Promise((resolve) => chrome.storage.local.remove(['scanResults'], resolve));
     await loadStats();
-    showStatus('已清空扫描结果', 'success');
+    showStatus(t('popup.statusCleared'), 'success');
   }
 
   function openManager() {

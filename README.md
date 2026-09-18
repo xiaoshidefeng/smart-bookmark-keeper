@@ -61,6 +61,8 @@ The related usage endpoint is derived automatically from the same base path.
 - `manifest.json`: extension manifest and permissions
 - `popup.html` / `popup.js` / `popup.css`: popup UI
 - `profile.html` / `profile.js` / `styles.css`: main management page
+- `i18n.js`: shared i18n dictionary and helpers used by both pages
+- `_locales/`: store-level name/description localization (`zh_CN` default, `en`)
 - `background.js`: background service worker
 - `privacy-policy.html`: privacy policy page
 - `icons/`: extension icons
@@ -69,12 +71,11 @@ The related usage endpoint is derived automatically from the same base path.
 
 - `bookmarks`
 - `storage`
-- `tabs`
 - `webRequest`
 - `favicon`
 - `host_permissions`
 
-These permissions are used for bookmark reading and organization, local settings, quick navigation, favicon display, and bookmark link validation.
+These permissions are used for bookmark reading and organization, local settings, favicon display, and bookmark link validation. Note: opening the manager or a bookmark via `chrome.tabs.create` does not require the `tabs` permission.
 
 ## Privacy
 
