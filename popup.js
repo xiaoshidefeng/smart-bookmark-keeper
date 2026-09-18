@@ -239,9 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resultMeta.textContent = '正在准备结果...';
     }
 
-    selectedCountBadge.textContent = `${selectedInvalidIds.size} 已选`;
-    deleteSelectedBtn.disabled = selectedInvalidIds.size === 0;
-    selectAllBtn.textContent = selectedInvalidIds.size === invalidBookmarks.length && invalidBookmarks.length > 0 ? '取消全选' : '全选';
+    updateSelectionUi();
 
     if (invalidBookmarks.length === 0) {
       resultList.innerHTML = '';
@@ -280,7 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           selectedInvalidIds.delete(bookmark.id);
         }
-        renderResultPanel(scanTimeIso);
+        item.classList.toggle('selected', checkbox.checked);
+        updateSelectionUi();
       });
 
       openButton.addEventListener('click', (event) => {
@@ -290,6 +289,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       resultList.appendChild(item);
     });
+  }
+
+  function updateSelectionUi() {
+    selectedCountBadge.textContent = `${selectedInvalidIds.size} 已选`;
+    deleteSelectedBtn.disabled = selectedInvalidIds.size === 0;
+    selectAllBtn.textContent = selectedInvalidIds.size === invalidBookmarks.length && invalidBookmarks.length > 0 ? '取消全选' : '全选';
   }
 
   function toggleSelectAll() {

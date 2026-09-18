@@ -483,7 +483,8 @@ document.addEventListener('DOMContentLoaded', () => {
     aiUsage: null,
     aiUsageError: '',
     locale: 'zh-CN',
-    isExpandedByDefault: true,
+    isExpandedByDefault: false,
+    expansionInitialized: false,
     expandedFolderIds: new Set(),
     scanTime: null,
     portraitStats: null,
@@ -572,9 +573,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ui.refreshBtn.addEventListener('click', refreshBookmarks);
     ui.toggleExpandBtn.addEventListener('click', toggleExpandFolders);
+    let searchDebounceTimer = null;
     ui.bookmarkSearchInput.addEventListener('input', (event) => {
-      state.searchTerm = event.target.value.trim().toLowerCase();
-      renderManageTree();
+      const value = event.target.value;
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        state.searchTerm = value.trim().toLowerCase();
+        renderManageTree();
+      }, 250);
     });
     ui.selectAllVisibleBtn.addEventListener('click', selectAllVisibleBookmarks);
     ui.clearSelectionBtn.addEventListener('click', clearManageSelection);
@@ -783,8 +789,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    if (state.isExpandedByDefault && state.expandedFolderIds.size === 0) {
-      validFolderIds.forEach((id) => state.expandedFolderIds.add(id));
+    if (!state.expansionInitialized) {
+      state.expansionInitialized = true;
+      validFolderIds.forEach((id) => {
+        const folder = state.folderMap.get(id);
+        if (folder && folder.path.length === 1) {
+          state.expandedFolderIds.add(id);
+        }
+      });
     }
   }
 
@@ -920,9 +932,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookmarks = Array.from(state.bookmarkMap.values());
     let httpsCount = 0;
 
+    const directChildCount = new Map();
+    bookmarks.forEach((bookmark) => {
+      directChildCount.set(bookmark.parentId, (directChildCount.get(bookmark.parentId) || 0) + 1);
+    });
+
     state.folderMap.forEach((folder) => {
       stats.maxDepth = Math.max(stats.maxDepth, folder.path.length);
-      const childBookmarks = bookmarks.filter((bookmark) => bookmark.parentId === folder.id).length;
+      const childBookmarks = directChildCount.get(folder.id) || 0;
       if (childBookmarks > stats.largestFolder.count) {
         stats.largestFolder = { title: folder.title, count: childBookmarks };
       }
@@ -1155,7 +1172,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderPortraitTrend(trend, granularity) {
+  let echartsLoaderPromise = null;
+
+  function loadEcharts() {
+    if (typeof echarts !== 'undefined') {
+      return Promise.resolve();
+    }
+    if (!echartsLoaderPromise) {
+      echartsLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('echarts.min.js');
+        script.onload = () => resolve();
+        script.onerror = () => {
+          echartsLoaderPromise = null;
+          reject(new Error('Failed to load chart library.'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return echartsLoaderPromise;
+  }
+
+  async function renderPortraitTrend(trend, granularity) {
     if (trend.length === 0) {
       ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${state.locale === 'en-US' ? 'Not enough time data yet.' : '暂无足够的时间数据。'}</div>`;
       if (state.portraitChart) {
@@ -1165,7 +1203,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (typeof echarts === 'undefined') {
+    try {
+      await loadEcharts();
+    } catch (error) {
       ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${state.locale === 'en-US' ? 'Failed to load chart library.' : '图表库加载失败。'}</div>`;
       return;
     }
@@ -1631,6 +1671,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderScanList(ui.invalidLinksList, invalidBookmarks, 'bookmark');
     renderScanList(ui.emptyFoldersList, state.emptyFolders, 'folder');
+    updateScanSelectionUi();
+  }
+
+  function updateScanSelectionUi() {
     ui.deleteSelectedScanBtn.disabled = state.selectedScanIds.size === 0;
     ui.deleteSelectedEmptyFoldersBtn.disabled = state.selectedEmptyFolderIds.size === 0;
     ui.selectAllEmptyFoldersBtn.textContent = state.emptyFolders.length > 0 && state.emptyFolders.every((folder) => state.selectedEmptyFolderIds.has(folder.id))
@@ -1672,6 +1716,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
+      const applySelectionChange = (selected) => {
+        row.classList.toggle('selected', selected);
+        updateScanSelectionUi();
+      };
+
       const checkbox = row.querySelector('.result-checkbox');
       checkbox?.addEventListener('change', () => {
         if (checkbox.checked) {
@@ -1685,7 +1734,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           state.selectedEmptyFolderIds.delete(item.id);
         }
-        renderScanResults();
+        applySelectionChange(checkbox.checked);
       });
 
       row.addEventListener('click', (event) => {
@@ -1704,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           state.selectedEmptyFolderIds.delete(item.id);
         }
-        renderScanResults();
+        applySelectionChange(checkbox.checked);
       });
 
       row.querySelector('.result-open-btn')?.addEventListener('click', () => chrome.tabs.create({ url: item.url }));
@@ -1885,14 +1934,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderManageNode(node) {
     if (node.children) {
-      const children = node.children
-        .map((child) => renderManageNode(child))
-        .filter(Boolean);
-
       const folder = state.folderMap.get(node.id);
       const matchesFolder = matchesSearch(`${folder?.title || ''} ${(folder?.path || []).join(' ')}`);
-      if (!matchesFolder && children.length === 0) {
-        return null;
+      // 搜索或筛选激活时保持全量渲染，让折叠文件夹内的匹配项可见；
+      // 浏览态下折叠文件夹的子节点延迟到展开时再渲染，控制初始 DOM 规模
+      const isFiltering = Boolean(state.searchTerm) || state.manageFilter !== 'all';
+      const isExpanded = state.expandedFolderIds.has(node.id);
+
+      let children = [];
+      if (isFiltering) {
+        children = node.children
+          .map((child) => renderManageNode(child))
+          .filter(Boolean);
+        if (!matchesFolder && children.length === 0) {
+          return null;
+        }
+      } else if (isExpanded) {
+        children = node.children
+          .map((child) => renderManageNode(child))
+          .filter(Boolean);
       }
 
       const section = document.createElement('section');
@@ -1901,7 +1961,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const isEmptyFolder = !!folder && folder.path.length > 0 && node.children.length === 0;
       const isEditing = state.editingNode?.type === 'folder' && state.editingNode.id === node.id;
       const editingValue = isEditing ? state.editingNode.value : '';
-      const isExpanded = state.expandedFolderIds.has(node.id);
+      const showChildren = isFiltering ? children.length > 0 : isExpanded;
+      const childCount = isFiltering || isExpanded
+        ? children.length
+        : node.children.reduce((count, child) => (child.children || isScannable(child.url) ? count + 1 : count), 0);
       const directBookmarkIds = (node.children || [])
         .filter((child) => !child.children && isScannable(child.url))
         .map((child) => child.id);
@@ -1909,7 +1972,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const header = document.createElement('button');
       header.type = 'button';
-      header.className = `folder-header ${isExpanded ? 'expanded' : ''}`;
+      header.className = `folder-header ${showChildren ? 'expanded' : ''}`;
       header.draggable = !isEditing;
       header.innerHTML = `
         <span class="folder-main">
@@ -1922,7 +1985,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </span>
         <span class="folder-side">
           ${isEmptyFolder ? `<span class="bookmark-chip bookmark-chip-warning">${state.locale === 'en-US' ? 'Empty Folder' : '空文件夹'}</span>` : ''}
-          <span class="folder-count">${children.length}</span>
+          <span class="folder-count">${childCount}</span>
           <span class="folder-actions">
             ${isEditing
               ? `<button class="btn-action btn-save" type="button">${state.locale === 'en-US' ? 'Save' : '保存'}</button><button class="btn-action btn-cancel" type="button">${state.locale === 'en-US' ? 'Cancel' : '取消'}</button>`
@@ -1933,16 +1996,32 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       const content = document.createElement('div');
-      content.className = `folder-children ${isExpanded ? 'show' : ''}`;
+      content.className = `folder-children ${showChildren ? 'show' : ''}`;
       children.forEach((child) => content.appendChild(child));
 
       header.addEventListener('click', () => {
         if (isEditing) {
           return;
         }
+        if (isFiltering) {
+          const nextShown = !content.classList.contains('show');
+          header.classList.toggle('expanded', nextShown);
+          content.classList.toggle('show', nextShown);
+          return;
+        }
         const nextExpanded = !state.expandedFolderIds.has(node.id);
         if (nextExpanded) {
           state.expandedFolderIds.add(node.id);
+          if (content.childElementCount === 0) {
+            const fragment = document.createDocumentFragment();
+            node.children.forEach((child) => {
+              const rendered = renderManageNode(child);
+              if (rendered) {
+                fragment.appendChild(rendered);
+              }
+            });
+            content.appendChild(fragment);
+          }
         } else {
           state.expandedFolderIds.delete(node.id);
         }
