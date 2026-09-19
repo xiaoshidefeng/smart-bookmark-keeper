@@ -186,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedScanIds: new Set(),
     selectedEmptyFolderIds: new Set(),
     selectedManageIds: new Set(),
+    selectionAnchorId: null,
     searchTerm: '',
     manageFilter: 'all',
     aiScopeMode: 'all',
@@ -2136,6 +2137,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (event.target.closest('button') || event.target.closest('.rename-editor') || event.target.classList.contains('bookmark-checkbox')) {
         return;
       }
+      // Ctrl/Cmd 单击切换并记录锚点；Shift 单击从锚点到当前行范围选择
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        handleRangeSelectionClick(bookmark.id, event.shiftKey);
+        return;
+      }
+      state.selectionAnchorId = bookmark.id;
       checkbox.checked = !checkbox.checked;
       toggleManageSelection(bookmark.id, checkbox.checked);
     });
@@ -2395,10 +2403,51 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectedCount <= 0) {
       return t('manage.selectionNoneHint');
     }
+    const total = getModelVisibleBookmarkIds().length;
+    if (total > selectedCount) {
+      return t('manage.selectionFraction', { s: selectedCount, total });
+    }
     if (selectedCount === 1) {
       return t('manage.selectionOne');
     }
     return t('manage.selectionMany', { n: selectedCount });
+  }
+
+  // 与渲染树一致的“当前视图”范围：搜索 + 筛选后的全部书签（含折叠文件夹内的）
+  function getModelVisibleBookmarkIds() {
+    const ids = [];
+    state.bookmarkMap.forEach((bookmark) => {
+      if (matchesSearch(bookmark.searchText) && passesManageFilter(bookmark)) {
+        ids.push(bookmark.id);
+      }
+    });
+    return ids;
+  }
+
+  function handleRangeSelectionClick(bookmarkId, isRange) {
+    if (!isRange) {
+      // Ctrl/Cmd 单击：切换单行并更新锚点
+      state.selectionAnchorId = bookmarkId;
+      const willSelect = !state.selectedManageIds.has(bookmarkId);
+      toggleManageSelection(bookmarkId, willSelect);
+      return;
+    }
+    const visibleIds = Array.from(ui.bookmarkTree.querySelectorAll('[data-bookmark-id]')).map((node) => node.dataset.bookmarkId);
+    if (visibleIds.length === 0) {
+      return;
+    }
+    const anchor = state.selectionAnchorId && visibleIds.includes(state.selectionAnchorId)
+      ? state.selectionAnchorId
+      : bookmarkId;
+    const a = visibleIds.indexOf(anchor);
+    const b = visibleIds.indexOf(bookmarkId);
+    const [start, end] = a <= b ? [a, b] : [b, a];
+    for (let i = start; i <= end; i += 1) {
+      const id = visibleIds[i];
+      if (!state.selectedManageIds.has(id)) {
+        toggleManageSelection(id, true);
+      }
+    }
   }
 
   function getBookmarkDragHint(bookmarkId) {
@@ -3960,7 +4009,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function selectAllVisibleBookmarks() {
-    const visibleIds = Array.from(ui.bookmarkTree.querySelectorAll('[data-bookmark-id]')).map((node) => node.dataset.bookmarkId);
+    // 基于数据模型而非 DOM 节点：折叠文件夹内的书签同样纳入全选
+    const visibleIds = getModelVisibleBookmarkIds();
     if (visibleIds.length === 0) {
       showToast(t('manage.noVisibleBookmarks'), 'warning');
       return;
@@ -3975,6 +4025,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       syncBookmarkSelectionUi(id);
     });
+    updateManageToolbar();
   }
 
   function clearManageSelection() {
