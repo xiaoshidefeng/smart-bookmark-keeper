@@ -15,6 +15,7 @@ let html = await readFile(join(rootDir, 'profile.html'), 'utf8');
 
 // 根目录静态资源 → 上一级
 html = html
+  .replace(/href="tokens\.css"/g, 'href="../tokens.css"')
   .replace(/href="styles\.css"/g, 'href="../styles.css"')
   .replace(/src="icons\//g, 'src="../icons/')
   .replace('<title data-i18n-title="app.title">智能书签管家</title>', '<title>HARNESS · 智能书签管家</title>');
@@ -28,8 +29,9 @@ html = html.replace(
     window.addEventListener('unhandledrejection', (e) => window.__ERRORS__.push('rejection: ' + ((e.reason && e.reason.stack) || e.reason)));
     // 每次加载强制刷新样式表，避免开发时命中缓存
     document.addEventListener('DOMContentLoaded', () => {
-      const link = document.querySelector('link[rel="stylesheet"]');
-      if (link) link.href = link.href.split('?')[0] + '?v=' + Date.now();
+      document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+        link.href = link.href.split('?')[0] + '?v=' + Date.now();
+      });
     });
   </script>
   <script src="mock-chrome.js"></script>

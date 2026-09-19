@@ -3,38 +3,7 @@
    Palette: product blue + warm amber (styles.css tokens)
    ======================================== */
 
-:root {
-  --color-primary-100: #e7f0ff;
-  --color-primary-300: #a9c4ff;
-  --color-primary-500: #4387f4;
-  --color-primary-600: #2f6fda;
-  --color-primary-700: #2458ad;
-  --color-primary-800: #21498c;
-  --color-accent-100: #ffefcc;
-  --color-accent-500: #e8a51a;
-  --color-accent-700: #9f690e;
-  --color-success: #199b6b;
-  --color-warning: #d9901a;
-  --color-danger: #d33a63;
-  --bg-primary: #f7faff;
-  --bg-secondary: #f3f7fc;
-  --bg-card: #fcfdff;
-  --text-primary: #142033;
-  --text-secondary: #42526b;
-  --text-muted: #718198;
-  --text-inverse: #f8fbff;
-  --border-light: #e2eaf4;
-  --border-medium: #ccd8e6;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 6px 16px rgba(15, 23, 42, 0.06), 0 12px 28px rgba(15, 23, 42, 0.08);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --font-display: Georgia, 'Times New Roman', 'Songti SC', 'STSong', serif;
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-}
+/* Design tokens come from tokens.css (shared with the manager page) */
 
 * {
   box-sizing: border-box;
@@ -135,7 +104,8 @@ body {
 }
 
 .stat-value {
-  font: 700 28px/1 var(--font-display);
+  font: 700 28px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
   color: var(--color-primary-600);
 }
 
@@ -235,7 +205,8 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  font: 700 13px/1 var(--font-display);
+  font: 700 13px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
 }
 
 .scan-title {
