@@ -115,6 +115,21 @@
     </footer>
   </div>
 
+  <div id="confirmDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+    <div class="dialog dialog-confirm">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="confirmDialogTitle" data-i18n="dialog.confirmTitle">确认操作</h3>
+      </div>
+      <div class="dialog-body">
+        <p class="dialog-message" id="confirmDialogMessage"></p>
+      </div>
+      <div class="dialog-footer">
+        <button id="confirmDialogCancelBtn" class="btn btn-secondary" type="button" data-i18n="common.cancel">取消</button>
+        <button id="confirmDialogOkBtn" class="btn btn-danger" type="button" data-i18n="dialog.confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
   <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>

@@ -888,6 +888,17 @@ a:hover {
   transition: transform var(--duration-normal) var(--ease-out-quart);
 }
 
+.dialog-confirm {
+  max-width: 400px;
+}
+
+.dialog-message {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: var(--line-relaxed);
+  overflow-wrap: anywhere;
+}
+
 .dialog-overlay.show .dialog {
   transform: scale(1) translateY(0);
 }

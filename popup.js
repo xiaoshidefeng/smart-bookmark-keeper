@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectAllBtn = document.getElementById('selectAllBtn');
   const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
   const clearResultsBtn = document.getElementById('clearResultsBtn');
+  const confirmDialog = document.getElementById('confirmDialog');
+  const confirmDialogTitle = document.getElementById('confirmDialogTitle');
+  const confirmDialogMessage = document.getElementById('confirmDialogMessage');
+  const confirmDialogOkBtn = document.getElementById('confirmDialogOkBtn');
+  const confirmDialogCancelBtn = document.getElementById('confirmDialogCancelBtn');
 
   // 后台扫描引擎的状态镜像（scanState 快照）
   let currentScanState = null;
@@ -57,11 +62,56 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAllBtn.addEventListener('click', toggleSelectAll);
     deleteSelectedBtn.addEventListener('click', deleteSelectedBookmarks);
     clearResultsBtn.addEventListener('click', clearStoredResults);
+    confirmDialogOkBtn.addEventListener('click', () => settleConfirmDialog(true));
+    confirmDialogCancelBtn.addEventListener('click', () => settleConfirmDialog(false));
+    confirmDialog.addEventListener('click', (event) => {
+      if (event.target === confirmDialog) {
+        settleConfirmDialog(false);
+      }
+    });
+    confirmDialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        settleConfirmDialog(false);
+      }
+    });
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes.scanState) {
         applyScanState(changes.scanState.newValue);
       }
     });
+  }
+
+  // ---- 自定义确认对话框：替代原生 confirm()
+  let confirmDialogState = null;
+
+  function showConfirmDialog({ title, message, confirmText } = {}) {
+    if (confirmDialogState) {
+      return Promise.resolve(false);
+    }
+    return new Promise((resolve) => {
+      confirmDialogState = { resolve, lastFocused: document.activeElement };
+      confirmDialogTitle.textContent = title || t('dialog.confirmTitle');
+      confirmDialogMessage.textContent = message || '';
+      confirmDialogOkBtn.textContent = confirmText || t('dialog.confirm');
+      confirmDialog.classList.remove('hidden');
+      confirmDialog.classList.add('show');
+      setTimeout(() => confirmDialogOkBtn.focus(), 120);
+    });
+  }
+
+  function settleConfirmDialog(result) {
+    if (!confirmDialogState) {
+      return;
+    }
+    const { resolve, lastFocused } = confirmDialogState;
+    confirmDialogState = null;
+    confirmDialog.classList.remove('show');
+    setTimeout(() => confirmDialog.classList.add('hidden'), 160);
+    if (lastFocused && typeof lastFocused.focus === 'function') {
+      lastFocused.focus();
+    }
+    resolve(result);
   }
 
   async function handleRefresh() {
@@ -395,7 +445,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const targets = invalidBookmarks.filter((bookmark) => selectedInvalidIds.has(bookmark.id));
-    if (!confirm(t('popup.confirmDeleteSelected', { n: targets.length }))) {
+    if (!(await showConfirmDialog({
+      title: t('dialog.deleteTitle'),
+      message: t('popup.confirmDeleteSelected', { n: targets.length }),
+      confirmText: t('dialog.delete')
+    }))) {
       return;
     }
 

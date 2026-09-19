@@ -57,6 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
     moveFolderList: document.getElementById('moveFolderList'),
     closeMoveFolderBtn: document.getElementById('closeMoveFolderBtn'),
     cancelMoveFolderBtn: document.getElementById('cancelMoveFolderBtn'),
+    confirmDialog: document.getElementById('confirmDialog'),
+    confirmDialogTitle: document.getElementById('confirmDialogTitle'),
+    confirmDialogMessage: document.getElementById('confirmDialogMessage'),
+    confirmDialogOkBtn: document.getElementById('confirmDialogOkBtn'),
+    confirmDialogCancelBtn: document.getElementById('confirmDialogCancelBtn'),
+    confirmDialogCloseBtn: document.getElementById('confirmDialogCloseBtn'),
     manageFilterToggleBtn: document.getElementById('manageFilterToggleBtn'),
     manageFilterPanel: document.getElementById('manageFilterPanel'),
     manageTipBanner: document.getElementById('manageTipBanner'),
@@ -318,6 +324,31 @@ document.addEventListener('DOMContentLoaded', () => {
       renderMoveFolderOptions();
     });
     ui.moveFolderSearchInput.addEventListener('keydown', handleMoveFolderSearchKeydown);
+    ui.confirmDialogOkBtn.addEventListener('click', () => settleConfirmDialog(true));
+    ui.confirmDialogCancelBtn.addEventListener('click', () => settleConfirmDialog(false));
+    ui.confirmDialogCloseBtn.addEventListener('click', () => settleConfirmDialog(false));
+    ui.confirmDialog.addEventListener('click', (event) => {
+      if (event.target === ui.confirmDialog) {
+        settleConfirmDialog(false);
+      }
+    });
+    ui.confirmDialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        settleConfirmDialog(false);
+        return;
+      }
+      if (event.key === 'Tab') {
+        // 对话框内只有三个可聚焦控件，Tab 循环困住焦点
+        const focusables = [ui.confirmDialogOkBtn, ui.confirmDialogCancelBtn, ui.confirmDialogCloseBtn];
+        const index = focusables.indexOf(document.activeElement);
+        event.preventDefault();
+        const next = event.shiftKey
+          ? focusables[(index - 1 + focusables.length) % focusables.length]
+          : focusables[(index + 1) % focusables.length];
+        next.focus();
+      }
+    });
     document.addEventListener('keydown', handleManageShortcuts);
     ui.manageFilterToggleBtn?.addEventListener('click', toggleManageFilterPanel);
     ui.manageFilterPanel?.querySelectorAll('[data-filter]').forEach((button) => {
@@ -449,6 +480,43 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideSettingsDialog() {
     ui.settingsDialog.classList.remove('show');
     setTimeout(() => ui.settingsDialog.classList.add('hidden'), 180);
+  }
+
+  // ---- 自定义确认对话框：替代原生 confirm()，promise 化并管理焦点
+  let confirmDialogState = null;
+
+  function showConfirmDialog({ title, message, confirmText, danger = false } = {}) {
+    if (confirmDialogState) {
+      return Promise.resolve(false);
+    }
+    return new Promise((resolve) => {
+      confirmDialogState = { resolve, lastFocused: document.activeElement };
+      ui.confirmDialogTitle.textContent = title || t('dialog.confirmTitle');
+      ui.confirmDialogMessage.textContent = message || '';
+      ui.confirmDialogOkBtn.textContent = confirmText || t('dialog.confirm');
+      ui.confirmDialogOkBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
+      ui.confirmDialog.classList.remove('hidden');
+      requestAnimationFrame(() => ui.confirmDialog.classList.add('show'));
+      setTimeout(() => ui.confirmDialogOkBtn.focus(), 200);
+    });
+  }
+
+  function settleConfirmDialog(result) {
+    if (!confirmDialogState) {
+      return;
+    }
+    const { resolve, lastFocused } = confirmDialogState;
+    confirmDialogState = null;
+    ui.confirmDialog.classList.remove('show');
+    setTimeout(() => ui.confirmDialog.classList.add('hidden'), 180);
+    if (lastFocused && typeof lastFocused.focus === 'function') {
+      lastFocused.focus();
+    }
+    resolve(result);
+  }
+
+  function isConfirmDialogOpen() {
+    return confirmDialogState !== null;
   }
 
   async function copyFeedbackEmail() {
@@ -1688,7 +1756,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (!confirm(t('scan.confirmDeleteInvalid', { n: ids.length }))) {
+    if (!(await showConfirmDialog({
+      title: t('dialog.deleteTitle'),
+      message: t('scan.confirmDeleteInvalid', { n: ids.length }),
+      confirmText: t('dialog.delete'),
+      danger: true
+    }))) {
       return;
     }
 
@@ -2082,7 +2155,12 @@ document.addEventListener('DOMContentLoaded', () => {
       cancelInlineRename();
     });
     article.querySelector('.btn-delete').addEventListener('click', async () => {
-      if (!confirm(t('manage.confirmDeleteBookmark', { t: bookmark.title }))) {
+      if (!(await showConfirmDialog({
+        title: t('dialog.deleteTitle'),
+        message: t('manage.confirmDeleteBookmark', { t: bookmark.title }),
+        confirmText: t('dialog.delete'),
+        danger: true
+      }))) {
         return;
       }
       await removeBookmarksByIds([bookmark.id], true);
@@ -3913,7 +3991,12 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(t('manage.selectDeleteFirst'), 'warning');
       return;
     }
-    if (!confirm(t('manage.confirmDeleteBookmarks', { n: ids.length }))) {
+    if (!(await showConfirmDialog({
+      title: t('dialog.deleteTitle'),
+      message: t('manage.confirmDeleteBookmarks', { n: ids.length }),
+      confirmText: t('dialog.delete'),
+      danger: true
+    }))) {
       return;
     }
 
@@ -3929,6 +4012,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let moveFolderActiveIndex = 0;
 
   function handleManageShortcuts(event) {
+    if (isConfirmDialogOpen()) {
+      return;
+    }
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
       return;
     }
@@ -4611,7 +4697,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (!confirm(t('manage.confirmDeleteEmptyFolder', { t: folder.title }))) {
+    if (!(await showConfirmDialog({
+      title: t('dialog.deleteTitle'),
+      message: t('manage.confirmDeleteEmptyFolder', { t: folder.title }),
+      confirmText: t('dialog.delete'),
+      danger: true
+    }))) {
       return;
     }
 
@@ -4643,7 +4734,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (!confirm(t('manage.confirmDeleteEmptyFolders', { n: ids.length }))) {
+    if (!(await showConfirmDialog({
+      title: t('dialog.deleteTitle'),
+      message: t('manage.confirmDeleteEmptyFolders', { n: ids.length }),
+      confirmText: t('dialog.delete'),
+      danger: true
+    }))) {
       return;
     }
 

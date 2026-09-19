@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HARNESS · 智能书签管家</title>
-  <link rel="stylesheet" href="../tokens.css">
-  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../tokens.css?v=1789841544372">
+  <link rel="stylesheet" href="../styles.css?v=1789842303953">
 </head>
 <body>
   <a href="#main-content" class="skip-link" data-i18n="app.skipToContent">跳转到主内容</a>
@@ -564,6 +564,22 @@
     </div>
   </div>
 
+  <div id="confirmDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+    <div class="dialog dialog-confirm">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="confirmDialogTitle" data-i18n="dialog.confirmTitle">确认操作</h3>
+        <button id="confirmDialogCloseBtn" class="dialog-close" type="button" aria-label="关闭" data-i18n-aria-label="common.closeSettings">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <p class="dialog-message" id="confirmDialogMessage"></p>
+      </div>
+      <div class="dialog-footer">
+        <button id="confirmDialogCancelBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
+        <button id="confirmDialogOkBtn" class="btn btn-primary" type="button" data-i18n="dialog.confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
   <script>
@@ -578,7 +594,7 @@
     });
   </script>
   <script src="mock-chrome.js"></script>
-  <script src="../i18n.js"></script>
-  <script src="../profile.js"></script>
+  <script src="../i18n.js?v=1789842169050"></script>
+  <script src="../profile.js?v=1789842277103"></script>
 </body>
 </html>
