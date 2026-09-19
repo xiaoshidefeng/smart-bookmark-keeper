@@ -364,6 +364,10 @@ body {
   display: none;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .result-panel-header {
   display: flex;
   justify-content: space-between;

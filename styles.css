@@ -1336,6 +1336,87 @@ a:hover {
   color: var(--text-primary);
 }
 
+.dialog-subtitle {
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* "移动到…"文件夹选择对话框 */
+.dialog-move-folder {
+  max-width: 460px;
+}
+
+.move-folder-search {
+  width: 100%;
+}
+
+.move-folder-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.move-folder-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.move-folder-option:hover,
+.move-folder-option.is-active {
+  background: rgba(67, 135, 244, 0.08);
+  border-color: rgba(67, 135, 244, 0.18);
+}
+
+.move-folder-option:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: transparent;
+  border-color: transparent;
+}
+
+.move-folder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #4387f4;
+  flex-shrink: 0;
+}
+
+.move-folder-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.move-folder-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.move-folder-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* Skip Link */
 .skip-link {
   position: absolute;
@@ -2400,6 +2481,80 @@ a:hover {
   height: 3px;
   border-radius: 999px;
   background: #4387f4;
+}
+
+.bookmark-item.drop-after {
+  position: relative;
+}
+
+.bookmark-item.drop-after .drop-indicator {
+  display: block;
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: auto;
+  bottom: -4px;
+  height: 3px;
+  border-radius: 999px;
+  background: #4387f4;
+}
+
+/* 拖拽时跟随鼠标的小型拖影，替代浏览器默认的整卡截图 */
+.drag-ghost {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(67, 135, 244, 0.35);
+  box-shadow: 0 10px 24px rgba(31, 71, 136, 0.22);
+  color: #1f3a63;
+  font-size: 13px;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.drag-ghost-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #4387f4;
+  flex-shrink: 0;
+}
+
+.drag-ghost-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.drag-ghost-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.drag-ghost-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #4387f4;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .undo-banner {

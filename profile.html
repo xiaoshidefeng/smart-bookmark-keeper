@@ -191,12 +191,13 @@
                 <p class="scan-card-copy" data-i18n="portrait.trendCopy">按年、月、日查看收藏节奏，快速判断最近是否还在持续积累。</p>
               </div>
               <div class="portrait-trend-tabs" role="tablist" aria-label="趋势粒度切换" data-i18n-aria-label="portrait.trendAria">
-                <button class="portrait-trend-tab" id="trendYearBtn" type="button" data-granularity="year" data-i18n="common.year">年</button>
-                <button class="portrait-trend-tab is-active" id="trendMonthBtn" type="button" data-granularity="month" data-i18n="common.month">月</button>
-                <button class="portrait-trend-tab" id="trendDayBtn" type="button" data-granularity="day" data-i18n="common.day">日</button>
+                <button class="portrait-trend-tab" id="trendYearBtn" type="button" role="tab" aria-selected="false" data-granularity="year" data-i18n="common.year">年</button>
+                <button class="portrait-trend-tab is-active" id="trendMonthBtn" type="button" role="tab" aria-selected="true" data-granularity="month" data-i18n="common.month">月</button>
+                <button class="portrait-trend-tab" id="trendDayBtn" type="button" role="tab" aria-selected="false" data-granularity="day" data-i18n="common.day">日</button>
               </div>
             </div>
             <div class="portrait-trend-chart" id="portraitTrendChart"></div>
+            <div class="sr-only" id="portraitTrendSummary"></div>
           </article>
 
           <article class="portrait-panel portrait-panel-side">
@@ -273,7 +274,10 @@
                 <h3 class="scan-card-title" data-i18n="portrait.shareSummary">分享摘要</h3>
                 <p class="scan-card-copy" data-i18n="portrait.shareSummaryCopy">需要时再复制出去，不再占据洞察页主舞台。</p>
               </div>
-              <div class="portrait-share-chip">Share Ready</div>
+              <div class="portrait-panel-actions">
+                <div class="portrait-share-chip" data-i18n="portrait.shareChip">Share Ready</div>
+                <button class="btn btn-ghost btn-sm" id="copyPortraitSummaryBtn" type="button" data-i18n="portrait.copySummary">复制摘要</button>
+              </div>
             </div>
             <div class="portrait-share-card" id="portraitShareCard">
               <div class="portrait-share-topline">
@@ -281,7 +285,7 @@
                   <div class="portrait-share-brand" data-i18n="app.brandName">智能书签管家</div>
                   <div class="portrait-share-level" id="portraitShareLevel">分析中</div>
                 </div>
-                <div class="portrait-share-badge">Bookmark Insights</div>
+                <div class="portrait-share-badge" data-i18n="portrait.kicker">Bookmark Insights</div>
               </div>
               <div class="portrait-share-headline" id="portraitShareHeadline">正在生成您的书签洞察</div>
               <div class="portrait-share-grid">
@@ -319,7 +323,7 @@
             <div class="portrait-metric-sub" data-i18n="portrait.collectionDaysMeta">持续积累时长</div>
           </article>
           <article class="portrait-metric-card">
-            <div class="portrait-card-label" data-i18n="portrait.organizationScoreLabel">组织分</div>
+            <div class="portrait-card-label" id="portraitOrganizationScoreLabel" data-i18n="portrait.organizationScoreLabel">组织分</div>
             <div class="portrait-metric-main" id="portraitOrganizationScore">0</div>
             <div class="portrait-metric-sub" data-i18n="portrait.organizationScoreMeta">整理成熟度参考</div>
           </article>
@@ -386,6 +390,7 @@
                     <button class="manage-filter-option" type="button" data-filter="added_before_365d" data-i18n="manage.filterOptionAdded365">一年前添加</button>
                   </div>
                 </div>
+                <button class="btn btn-ghost btn-sm" id="moveSelectionBtn" type="button" disabled data-i18n="manage.moveToFolder">移动到…</button>
                 <button class="btn btn-danger btn-sm" id="deleteSelectionBtn" type="button" disabled data-i18n="manage.deleteSelection">删除选中</button>
               </div>
             </div>
@@ -535,6 +540,25 @@
       <div class="dialog-footer">
         <button id="cancelSettingsBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
         <button id="saveSettingsBtn" class="btn btn-primary" type="button" data-i18n="common.save">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="moveFolderDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="moveFolderDialogTitle">
+    <div class="dialog dialog-move-folder">
+      <div class="dialog-header">
+        <div>
+          <h3 class="dialog-title" id="moveFolderDialogTitle" data-i18n="manage.moveDialogTitle">移动书签到文件夹</h3>
+          <p class="dialog-subtitle" id="moveFolderDialogSummary"></p>
+        </div>
+        <button id="closeMoveFolderBtn" class="dialog-close" type="button" aria-label="关闭" data-i18n-aria-label="common.closeSettings">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <input id="moveFolderSearchInput" class="form-input move-folder-search" type="search" data-i18n-placeholder="manage.moveDialogSearchPlaceholder" placeholder="搜索文件夹路径" autocomplete="off">
+        <div class="move-folder-list" id="moveFolderList" role="listbox" data-i18n-aria-label="manage.moveDialogListAria" aria-label="文件夹列表"></div>
+      </div>
+      <div class="dialog-footer">
+        <button id="cancelMoveFolderBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
       </div>
     </div>
   </div>

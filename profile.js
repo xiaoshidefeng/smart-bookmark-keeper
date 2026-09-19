@@ -50,6 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAllVisibleBtn: document.getElementById('selectAllVisibleBtn'),
     clearSelectionBtn: document.getElementById('clearSelectionBtn'),
     deleteSelectionBtn: document.getElementById('deleteSelectionBtn'),
+    moveSelectionBtn: document.getElementById('moveSelectionBtn'),
+    moveFolderDialog: document.getElementById('moveFolderDialog'),
+    moveFolderDialogTitleSummary: document.getElementById('moveFolderDialogSummary'),
+    moveFolderSearchInput: document.getElementById('moveFolderSearchInput'),
+    moveFolderList: document.getElementById('moveFolderList'),
+    closeMoveFolderBtn: document.getElementById('closeMoveFolderBtn'),
+    cancelMoveFolderBtn: document.getElementById('cancelMoveFolderBtn'),
     manageFilterToggleBtn: document.getElementById('manageFilterToggleBtn'),
     manageFilterPanel: document.getElementById('manageFilterPanel'),
     manageTipBanner: document.getElementById('manageTipBanner'),
@@ -85,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     portraitTotalFolders: document.getElementById('portraitTotalFolders'),
     portraitCollectionDays: document.getElementById('portraitCollectionDays'),
     portraitOrganizationScore: document.getElementById('portraitOrganizationScore'),
+    portraitOrganizationScoreLabel: document.getElementById('portraitOrganizationScoreLabel'),
     portraitHttpsRatio: document.getElementById('portraitHttpsRatio'),
     portraitActionableIssues: document.getElementById('portraitActionableIssues'),
     portraitActionableMeta: document.getElementById('portraitActionableMeta'),
@@ -104,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     portraitNewestDate: document.getElementById('portraitNewestDate'),
     portraitKeywords: document.getElementById('portraitKeywords'),
     portraitTrendChart: document.getElementById('portraitTrendChart'),
+    portraitTrendSummary: document.getElementById('portraitTrendSummary'),
     trendYearBtn: document.getElementById('trendYearBtn'),
     trendMonthBtn: document.getElementById('trendMonthBtn'),
     trendDayBtn: document.getElementById('trendDayBtn'),
@@ -186,6 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
       timer: null
     },
     draggedItem: null,
+    dragAutoScroll: null,
+    dragExpandTimer: null,
+    dragGhost: null,
     editingNode: null,
     aiPlan: {
       status: 'idle',
@@ -219,8 +231,11 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadSettings();
     applyTranslations();
     await loadBookmarks();
-    await loadStoredScanResults();
-    await refreshAiUsage();
+    await Promise.all([
+      loadStoredScanResults(),
+      restoreBackgroundScanUi(),
+      refreshAiUsage()
+    ]);
     renderTabs();
   }
 
@@ -248,6 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.startScanBtn.addEventListener('click', startQuickScan);
     ui.pauseBtn.addEventListener('click', togglePauseScan);
     ui.stopBtn.addEventListener('click', stopScan);
+    // 后台扫描引擎的状态推送：进度实时同步，完成/取消时走统一收尾
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.scanState) {
+        applyBackgroundScanState(changes.scanState.newValue);
+      }
+    });
+    // 页面可见且已有最终结果时，清除扩展图标角标
+    document.addEventListener('visibilitychange', dismissBadgeIfFinalSeen);
     ui.refreshScanStatsBtn.addEventListener('click', refreshScanStats);
     ui.selectAllInvalidBtn.addEventListener('click', toggleSelectAllInvalid);
     ui.selectAllEmptyFoldersBtn.addEventListener('click', toggleSelectAllEmptyFolders);
@@ -269,6 +292,20 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.selectAllVisibleBtn.addEventListener('click', selectAllVisibleBookmarks);
     ui.clearSelectionBtn.addEventListener('click', clearManageSelection);
     ui.deleteSelectionBtn.addEventListener('click', deleteSelectedBookmarks);
+    ui.moveSelectionBtn.addEventListener('click', openMoveFolderDialog);
+    ui.closeMoveFolderBtn.addEventListener('click', hideMoveFolderDialog);
+    ui.cancelMoveFolderBtn.addEventListener('click', hideMoveFolderDialog);
+    ui.moveFolderDialog.addEventListener('click', (event) => {
+      if (event.target === ui.moveFolderDialog) {
+        hideMoveFolderDialog();
+      }
+    });
+    ui.moveFolderSearchInput.addEventListener('input', () => {
+      moveFolderActiveIndex = 0;
+      renderMoveFolderOptions();
+    });
+    ui.moveFolderSearchInput.addEventListener('keydown', handleMoveFolderSearchKeydown);
+    document.addEventListener('keydown', handleManageShortcuts);
     ui.manageFilterToggleBtn?.addEventListener('click', toggleManageFilterPanel);
     ui.manageFilterPanel?.querySelectorAll('[data-filter]').forEach((button) => {
       button.addEventListener('click', () => setManageFilter(button.dataset.filter));
@@ -379,6 +416,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.BK_I18N.setLocale(locale);
     applyTranslations();
     renderAiPlan();
+    // 洞察页的日期、等级文案、标签和关键词都是缓存的动态渲染结果，翻译切换后需要重算并重渲染
+    if (state.portraitStats) {
+      assignPortraitConclusion(state.portraitStats);
+      state.portraitStats.tags = derivePortraitTags(state.portraitStats.topDomains);
+      state.portraitStats.topKeywords = extractPortraitKeywords(Array.from(state.bookmarkMap.values()));
+    }
+    if (state.activeTab === 'portrait') {
+      renderPortrait();
+    }
     await new Promise((resolve) => chrome.storage.local.set({ locale }, resolve));
   }
 
@@ -450,7 +496,11 @@ document.addEventListener('DOMContentLoaded', () => {
     syncExpandedFolderState();
     state.portraitStats = calculatePortraitStats();
     updateOverviewStats();
-    renderPortrait();
+    // 洞察页隐藏时只算不渲染：否则 ECharts 会在 display:none 容器上初始化成 0×0，
+    // 且图表库会在用户从未打开洞察页的情况下被提前加载
+    if (state.activeTab === 'portrait') {
+      renderPortrait();
+    }
     renderAiPlan();
   }
 
@@ -600,14 +650,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const domains = new Map();
-    const keywords = new Map();
-    const urlCounts = new Map();
     const bookmarks = Array.from(state.bookmarkMap.values());
     let httpsCount = 0;
 
     const directChildCount = new Map();
     bookmarks.forEach((bookmark) => {
-      directChildCount.set(bookmark.parentId, (directChildCount.get(bookmark.parentId) || 0) + 1);
+      // 用 parentFolderId（indexNodes 写入的权威字段），不依赖原始节点是否带 parentId
+      directChildCount.set(bookmark.parentFolderId, (directChildCount.get(bookmark.parentFolderId) || 0) + 1);
     });
 
     state.folderMap.forEach((folder) => {
@@ -629,18 +678,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthMap = new Map();
     const dayMap = new Map();
     bookmarks.forEach((bookmark) => {
-      try {
-        const url = new URL(bookmark.url);
+      const parsedUrl = parseUrlSafe(bookmark.url);
+      if (parsedUrl) {
         domains.set(bookmark.domain, (domains.get(bookmark.domain) || 0) + 1);
-        if (url.protocol === 'https:') {
+        if (parsedUrl.protocol === 'https:') {
           httpsCount += 1;
         }
-      } catch (error) {}
-
-      normalizeUrl(bookmark.url, urlCounts);
-      tokenizeTitle(bookmark.title).forEach((word) => {
-        keywords.set(word, (keywords.get(word) || 0) + 1);
-      });
+      }
 
       if (bookmark.dateAdded) {
         const date = new Date(bookmark.dateAdded);
@@ -664,12 +708,9 @@ document.addEventListener('DOMContentLoaded', () => {
       stats.collectionDays = Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
     }
 
-    urlCounts.forEach((count) => {
-      if (count > 1) {
-        stats.duplicateCount += 1;
-      }
-    });
-
+    // 口径统一：重复链接按“涉及的重复书签数”展示，与“查看重复链接”在管理页高亮的条数一致。
+    // loadBookmarks 已先跑过 collectDuplicateBookmarkIds，这里直接复用，不再重复归一化。
+    stats.duplicateCount = state.duplicateBookmarkIds?.size ?? 0;
     stats.duplicatePercentage = stats.totalBookmarks > 0
       ? Number(((stats.duplicateCount / stats.totalBookmarks) * 100).toFixed(1))
       : 0;
@@ -688,34 +729,33 @@ document.addEventListener('DOMContentLoaded', () => {
         count,
         percentage: stats.totalBookmarks > 0 ? Number(((count / stats.totalBookmarks) * 100).toFixed(1)) : 0
       }));
-    stats.topKeywords = Array.from(keywords.entries())
-      .sort((left, right) => right[1] - left[1])
-      .slice(0, 8)
-      .map(([keyword, count]) => ({ keyword, count }));
+    stats.topKeywords = extractPortraitKeywords(bookmarks);
     stats.topFolders = stats.topFolders
       .sort((left, right) => right.count - left.count)
       .slice(0, 6);
-    stats.trendSeries.year = Array.from(yearMap.entries())
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .slice(-8)
-      .map(([label, count]) => ({ label, count }));
-    stats.trendSeries.month = Array.from(monthMap.entries())
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .slice(-12)
-      .map(([label, count]) => ({ label, count }));
-    stats.trendSeries.day = Array.from(dayMap.entries())
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .slice(-14)
-      .map(([label, count]) => ({ label, count }));
+    stats.trendSeries.year = buildTrendSeries(yearMap, 'year');
+    stats.trendSeries.month = buildTrendSeries(monthMap, 'month');
+    stats.trendSeries.day = buildTrendSeries(dayMap, 'day');
 
     stats.tags = derivePortraitTags(stats.topDomains);
 
+    // 口径：文件夹利用率(3) + 空文件夹占比(2) + 目录深度(2) + 来源多样性(2) + 无重复(1)。
+    // 深度只在 1-3 层内给满，更深的嵌套不再加分，避免与“最大层级”整理提示自相矛盾。
     const folderUsage = stats.totalFolders > 0 ? Math.min(stats.totalBookmarks / Math.max(stats.totalFolders, 1) / 18, 1) : 0;
     const emptyRatio = stats.totalFolders > 0 ? 1 - stats.emptyFolders / stats.totalFolders : 1;
-    const depthScore = Math.min(stats.maxDepth / 5, 1);
+    const depthScore = Math.min(stats.maxDepth, 3) / 3;
     const domainScore = stats.totalBookmarks > 0 ? Math.min(stats.uniqueDomains / stats.totalBookmarks * 8, 1) : 0;
-    stats.organizationScore = Number((((folderUsage * 3) + (emptyRatio * 3) + (depthScore * 2) + (domainScore * 2)) / 10 * 100).toFixed(0));
+    const duplicateFreeRatio = stats.totalBookmarks > 0 ? Math.max(0, 1 - stats.duplicateCount / stats.totalBookmarks) : 1;
+    stats.organizationScore = Math.round(((folderUsage * 3) + (emptyRatio * 2) + (depthScore * 2) + (domainScore * 2) + duplicateFreeRatio) / 10 * 100);
 
+    assignPortraitConclusion(stats);
+
+    return stats;
+  }
+
+  // level/headline/subtitle 是缓存的 t() 文案，语言切换时需要对已有 stats 重算。
+  // headline/subtitle 优先注入真实数据（待清理项、结构特征），没有可指出的问题时回退到等级固定文案。
+  function assignPortraitConclusion(stats) {
     const levelScore = (
       Math.min(stats.totalBookmarks / 300, 1) * 35 +
       Math.min(stats.uniqueDomains / 80, 1) * 20 +
@@ -723,25 +763,102 @@ document.addEventListener('DOMContentLoaded', () => {
       Math.min(stats.collectionDays / 365, 1) * 20
     );
 
+    let fallbackHeadline;
+    let fallbackSubtitle;
+
     if (levelScore > 80) {
       stats.level = t('portrait.levelSystematic');
-      stats.headline = t('portrait.headlineSystematic');
-      stats.subtitle = t('portrait.subtitleSystematic');
+      fallbackHeadline = t('portrait.headlineSystematic');
+      fallbackSubtitle = t('portrait.subtitleSystematic');
     } else if (levelScore > 55) {
       stats.level = t('portrait.levelAdvanced');
-      stats.headline = t('portrait.headlineAdvanced');
-      stats.subtitle = t('portrait.subtitleAdvanced');
+      fallbackHeadline = t('portrait.headlineAdvanced');
+      fallbackSubtitle = t('portrait.subtitleAdvanced');
     } else if (levelScore > 30) {
       stats.level = t('portrait.levelExploratory');
-      stats.headline = t('portrait.headlineExploratory');
-      stats.subtitle = t('portrait.subtitleExploratory');
+      fallbackHeadline = t('portrait.headlineExploratory');
+      fallbackSubtitle = t('portrait.subtitleExploratory');
     } else {
       stats.level = t('portrait.levelNew');
-      stats.headline = t('portrait.headlineNew');
-      stats.subtitle = t('portrait.subtitleNew');
+      fallbackHeadline = t('portrait.headlineNew');
+      fallbackSubtitle = t('portrait.subtitleNew');
     }
 
-    return stats;
+    stats.headline = buildPortraitHeadline(stats) || fallbackHeadline;
+    stats.subtitle = buildPortraitSubtitle(stats) || fallbackSubtitle;
+  }
+
+  function buildPortraitHeadline(stats) {
+    if (stats.duplicateCount > 0 && stats.emptyFolders > 0) {
+      return t('portrait.headlineCleanupBoth', { n: stats.duplicateCount, m: stats.emptyFolders });
+    }
+    if (stats.duplicateCount > 0) {
+      return t('portrait.headlineCleanupDup', { n: stats.duplicateCount });
+    }
+    if (stats.emptyFolders > 0) {
+      return t('portrait.headlineCleanupEmpty', { m: stats.emptyFolders });
+    }
+    return '';
+  }
+
+  function buildPortraitSubtitle(stats) {
+    const largestShare = stats.totalBookmarks > 0 ? stats.largestFolder.count / stats.totalBookmarks : 0;
+    if (largestShare >= 0.3) {
+      return t('portrait.subtitleLargeFolder', { folder: stats.largestFolder.title, n: stats.largestFolder.count });
+    }
+    if (stats.maxDepth >= 6) {
+      return t('portrait.subtitleDeep', { n: stats.maxDepth });
+    }
+    const topDomain = stats.topDomains.length > 0 ? stats.topDomains[0] : null;
+    if (topDomain && topDomain.percentage >= 35) {
+      return t('portrait.subtitleTopDomain', { domain: topDomain.domain, p: topDomain.percentage });
+    }
+    return '';
+  }
+
+  // 趋势横轴按日历生成到今天，缺失的时间点补 0：如果只取“最近 N 个有数据的点”，
+  // 长期没收藏书签时旧数据会被当成最近数据展示，看不出停滞。
+  function buildTrendSeries(counts, granularity) {
+    if (counts.size === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    const earliestLabel = Array.from(counts.keys()).sort()[0];
+    let cursor;
+    let labelOf;
+    let next;
+
+    if (granularity === 'year') {
+      const floor = new Date(now.getFullYear() - 7, 0, 1);
+      const earliest = new Date(Number(earliestLabel), 0, 1);
+      cursor = earliest > floor ? earliest : floor;
+      labelOf = (date) => String(date.getFullYear());
+      next = (date) => new Date(date.getFullYear() + 1, 0, 1);
+    } else if (granularity === 'month') {
+      const [earliestYear, earliestMonth] = earliestLabel.split('-').map(Number);
+      const floor = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      const earliest = new Date(earliestYear, earliestMonth - 1, 1);
+      cursor = earliest > floor ? earliest : floor;
+      labelOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      next = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 1);
+    } else {
+      const [earliestYear, earliestMonth, earliestDay] = earliestLabel.split('-').map(Number);
+      const floor = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13);
+      const earliest = new Date(earliestYear, earliestMonth - 1, earliestDay);
+      cursor = earliest > floor ? earliest : floor;
+      labelOf = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      next = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    }
+
+    const endLabel = labelOf(now);
+    const series = [];
+    while (labelOf(cursor) <= endLabel) {
+      const label = labelOf(cursor);
+      series.push({ label, count: counts.get(label) || 0 });
+      cursor = next(cursor);
+    }
+    return series;
   }
 
   function renderPortrait() {
@@ -758,11 +875,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setNodeText(ui.portraitTotalFolders, String(stats.totalFolders));
     setNodeText(ui.portraitCollectionDays, String(stats.collectionDays));
     setNodeText(ui.portraitOrganizationScore, `${stats.organizationScore}`);
+    ui.portraitOrganizationScoreLabel?.setAttribute('title', t('portrait.organizationScoreTip'));
     setNodeText(ui.portraitHttpsRatio, `${stats.httpsRatio}%`);
     setNodeText(ui.portraitActionableIssues, String(actionableIssues));
     setNodeText(ui.portraitActionableMeta, t('portrait.duplicateEmptyMeta', { n: stats.duplicateCount, m: stats.emptyFolders }));
-    setNodeText(ui.portraitLargestFolder, stats.largestFolder.title);
-    setNodeText(ui.portraitLargestFolderMeta, t('portrait.largestFolderMeta', { n: stats.largestFolder.count }));
+    if (stats.largestFolder.count > 0) {
+      setNodeText(ui.portraitLargestFolder, stats.largestFolder.title);
+      setNodeText(ui.portraitLargestFolderMeta, t('portrait.largestFolderMeta', { n: stats.largestFolder.count }));
+    } else {
+      setNodeText(ui.portraitLargestFolder, '-');
+      setNodeText(ui.portraitLargestFolderMeta, '-');
+    }
     setNodeText(ui.portraitEmptyFolders, String(stats.emptyFolders));
     setNodeText(ui.portraitMaxDepth, String(stats.maxDepth));
     setNodeText(ui.portraitAvgPerFolder, String(stats.avgPerFolder));
@@ -835,7 +958,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     buttons.forEach(([button, value]) => {
-      button.classList.toggle('is-active', state.portraitTrendGranularity === value);
+      const active = state.portraitTrendGranularity === value;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', String(active));
     });
   }
 
@@ -860,9 +985,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return echartsLoaderPromise;
   }
 
+  function trendUnitLabel(granularity) {
+    if (granularity === 'year') {
+      return t('common.year');
+    }
+    if (granularity === 'month') {
+      return t('common.month');
+    }
+    return t('common.day');
+  }
+
   async function renderPortraitTrend(trend, granularity) {
     if (trend.length === 0) {
       ui.portraitTrendChart.innerHTML = `<div class="result-empty-state">${t('portrait.noTrendData')}</div>`;
+      setNodeText(ui.portraitTrendSummary, '');
       if (state.portraitChart) {
         state.portraitChart.dispose();
         state.portraitChart = null;
@@ -883,6 +1019,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const xAxisLabels = trend.map((item) => formatTrendLabel(item.label, granularity));
     const seriesData = trend.map((item) => item.count);
+    const totalCount = trend.reduce((sum, item) => sum + item.count, 0);
+    const peakPoint = trend.reduce((top, item) => (item.count > top.count ? item : top), trend[0]);
+    setNodeText(ui.portraitTrendSummary, t('portrait.trendAriaSummary', {
+      u: trendUnitLabel(granularity),
+      n: totalCount,
+      peak: formatTrendLabel(peakPoint.label, granularity),
+      m: peakPoint.count
+    }));
 
     state.portraitChart.setOption({
       animationDuration: 450,
@@ -902,8 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         formatter: (params) => {
           const point = params[0];
-          const unit = granularity === 'year' ? t('common.year') : granularity === 'month' ? t('common.month') : t('common.day');
-          return t('portrait.trendTooltip', { x: point.axisValue, n: point.data, u: unit });
+          return t('portrait.trendTooltip', { x: point.axisValue, n: point.data, u: trendUnitLabel(granularity) });
         }
       },
       xAxis: {
@@ -1062,6 +1205,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function refreshScanStats() {
+    if (state.scanController.isRunning || state.scanController.isPaused) {
+      showToast(t('scan.scanningNow'), 'info');
+      return;
+    }
+
     ui.refreshScanStatsBtn.disabled = true;
     try {
       await loadBookmarks();
@@ -1103,25 +1251,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 后台扫描引擎的状态快照缓存（用于角标清理判断）
+  let latestBgScanState = null;
+
+  function sendScanMessage(payload) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage(payload, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve(null);
+            return;
+          }
+          resolve(response);
+        });
+      } catch (error) {
+        resolve(null);
+      }
+    });
+  }
+
   async function startQuickScan() {
-    if (state.scanController.isRunning) {
+    if (state.scanController.isRunning || state.scanController.isPaused) {
       return;
     }
 
     state.activeTab = 'scan';
     renderTabs();
     resetScanRuntime();
-
-    const bookmarks = Array.from(state.bookmarkMap.values());
-    state.scanController.total = bookmarks.length;
-    state.scanController.startTime = Date.now();
-    state.scanController.isRunning = true;
-    state.scanController.errorCount = 0;
     state.invalidLinksMap = {};
     state.selectedScanIds.clear();
 
-    ui.pauseBtn.classList.remove('hidden');
-    ui.stopBtn.classList.remove('hidden');
+    ui.pauseBtn.classList.add('hidden');
+    ui.stopBtn.classList.add('hidden');
     ui.startScanBtn.disabled = true;
     ui.scanStatusText.textContent = t('scan.scanningNow');
     ui.scannedCount.textContent = '0';
@@ -1130,86 +1291,118 @@ document.addEventListener('DOMContentLoaded', () => {
     updateProgressRing(0);
     renderScanResults();
 
-    if (bookmarks.length === 0) {
+    // 扫描循环由 background service worker 驱动，页面只发起并订阅进度
+    const response = await sendScanMessage({ type: 'startScan', timeoutMs: CONFIG.TIMEOUT * 1000 });
+    const bgState = response?.state;
+
+    if (!bgState) {
+      ui.startScanBtn.disabled = false;
+      ui.scanStatusText.textContent = t('scan.waiting');
+      showToast(t('scan.startFailed'), 'error');
+      return;
+    }
+
+    if (bgState.status === 'completed' && bgState.total === 0) {
       finishScan(t('scan.noScannableBookmarks'), 'warning');
       return;
     }
 
-    state.scanController.timer = setInterval(updateScanDuration, 1000);
+    applyBackgroundScanState(bgState, { force: true });
+  }
 
-    const queue = bookmarks.slice();
-    let cursor = 0;
+  // 将后台 scanState 快照同步到页面 UI；页面刷新 / 关闭重开都会经此恢复
+  function applyBackgroundScanState(bg, options = {}) {
+    if (!bg || !bg.status) {
+      return;
+    }
 
-    const takeNextBookmark = async () => {
-      const nextIndex = cursor;
-      const bookmark = queue[nextIndex];
-      cursor += 1;
+    latestBgScanState = bg;
+    let mirror = state.scanController;
+    const wasActive = mirror.isRunning || mirror.isPaused;
 
-      if (!bookmark) {
-        return null;
+    if (bg.status === 'running' || bg.status === 'paused') {
+      if (!wasActive) {
+        resetScanRuntime();
+        // resetScanRuntime 会整体替换 scanController 对象，这里取最新引用
+        mirror = state.scanController;
+
+        mirror.isRunning = true;
+        mirror.isPaused = bg.status === 'paused';
+        mirror.total = bg.total;
+        mirror.completed = bg.checked;
+        mirror.errorCount = bg.errorCount;
+        const elapsedNow = (bg.elapsedMs || 0) + (bg.status === 'running' ? Date.now() - (bg.segmentStart || Date.now()) : 0);
+        mirror.startTime = Date.now() - elapsedNow;
+
+        state.invalidLinksMap = {};
+        state.selectedScanIds.clear();
+        ui.startScanBtn.disabled = true;
+        ui.pauseBtn.classList.remove('hidden');
+        ui.stopBtn.classList.remove('hidden');
+        ui.pauseBtn.textContent = mirror.isPaused ? t('scan.resume') : t('scan.pause');
+        ui.scanStatusText.textContent = mirror.isPaused ? t('scan.paused') : t('scan.scanningNow');
+        mirror.timer = setInterval(updateScanDuration, 1000);
+        updateScanDuration();
+        renderScanResults();
+      } else if (mirror.isPaused !== (bg.status === 'paused')) {
+        mirror.isPaused = bg.status === 'paused';
+        ui.pauseBtn.textContent = mirror.isPaused ? t('scan.resume') : t('scan.pause');
+        ui.scanStatusText.textContent = mirror.isPaused ? t('scan.paused') : t('scan.resuming');
       }
 
-      if (nextIndex > 0 && nextIndex % CONFIG.BATCH_SIZE === 0) {
-        await sleep(CONFIG.BATCH_DELAY_MS);
-      }
+      mirror.total = bg.total;
+      mirror.completed = bg.checked;
+      mirror.errorCount = bg.errorCount;
+      ui.scannedCount.textContent = String(mirror.completed);
+      ui.scanInvalidCount.textContent = String(bg.invalidCount);
+      updateProgressRing(mirror.total > 0 ? (mirror.completed / mirror.total) * 100 : 0);
+      return;
+    }
 
-      return bookmark;
-    };
+    if (bg.status !== 'completed' && bg.status !== 'cancelled' && bg.status !== 'interrupted') {
+      return;
+    }
 
-    const worker = async () => {
-      while (!state.scanController.isCancelled) {
-        if (state.scanController.isPaused) {
-          await sleep(120);
-          continue;
-        }
+    if (!wasActive && !options.force) {
+      return;
+    }
 
-        const bookmark = await takeNextBookmark();
-        if (!bookmark) {
-          return;
-        }
+    clearInterval(mirror.timer);
+    mirror.isRunning = false;
+    mirror.isPaused = false;
+    mirror.total = bg.total;
+    mirror.completed = bg.checked;
+    mirror.errorCount = bg.errorCount;
+    state.scanTime = bg.scanTime || new Date().toISOString();
 
-        const result = await validateUrl(bookmark.url);
-        if (state.scanController.isCancelled) {
-          return;
-        }
-
-        if (result.error) {
-          state.scanController.errorCount += 1;
-        }
-
-        if (result.isInvalid) {
-          state.invalidLinksMap[bookmark.id] = {
-            id: bookmark.id,
-            title: bookmark.title,
-            url: bookmark.url,
-            path: bookmark.path,
-            domain: bookmark.domain
-          };
-        }
-
-        state.scanController.completed += 1;
-        ui.scannedCount.textContent = String(state.scanController.completed);
-        ui.scanInvalidCount.textContent = String(Object.keys(state.invalidLinksMap).length);
-        updateProgressRing((state.scanController.completed / state.scanController.total) * 100);
-      }
-    };
-
-    try {
-      await Promise.all(Array.from({ length: CONFIG.CONCURRENCY }, () => worker()));
-    } finally {
-      if (state.scanController.isCancelled) {
+    // 后台已写入 scanResults（含取消时的部分结果），从 storage 读回并走原有收尾
+    loadStoredScanResults({ renderManage: false }).then(() => {
+      if (bg.status === 'cancelled' || bg.status === 'interrupted') {
         finishScan(t('scan.stopped'), 'warning');
-        return;
+      } else {
+        const invalidCount = Object.keys(state.invalidLinksMap).length;
+        finishScan(
+          buildScanSummary(invalidCount, bg.errorCount),
+          bg.errorCount > 0 || invalidCount > 0 ? 'warning' : 'success'
+        );
       }
+      dismissBadgeIfFinalSeen();
+    });
+  }
 
-      state.scanTime = new Date().toISOString();
-      await persistScanResults();
-      const invalidCount = Object.keys(state.invalidLinksMap).length;
-      const errorCount = state.scanController.errorCount;
-      finishScan(
-        buildScanSummary(invalidCount, errorCount),
-        errorCount > 0 || invalidCount > 0 ? 'warning' : 'success'
-      );
+  async function restoreBackgroundScanUi() {
+    const response = await sendScanMessage({ type: 'getScanState' });
+    applyBackgroundScanState(response?.state);
+    dismissBadgeIfFinalSeen();
+  }
+
+  function dismissBadgeIfFinalSeen() {
+    const status = latestBgScanState?.status;
+    if (
+      document.visibilityState !== 'hidden' &&
+      (status === 'completed' || status === 'cancelled' || status === 'interrupted')
+    ) {
+      sendScanMessage({ type: 'dismissScanBadge' });
     }
   }
 
@@ -1248,24 +1441,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function togglePauseScan() {
-    if (!state.scanController.isRunning) {
+    if (!state.scanController.isRunning && !state.scanController.isPaused) {
       return;
     }
 
-    state.scanController.isPaused = !state.scanController.isPaused;
-    ui.pauseBtn.textContent = state.scanController.isPaused ? t('scan.resume') : t('scan.pause');
-    ui.scanStatusText.textContent = state.scanController.isPaused ? t('scan.paused') : t('scan.resuming');
-    showToast(state.scanController.isPaused ? t('scan.paused') : t('scan.resumed'), 'info');
+    const action = state.scanController.isPaused ? 'resumeScan' : 'pauseScan';
+    sendScanMessage({ type: action }).then((response) => {
+      if (response?.state) {
+        applyBackgroundScanState(response.state);
+      }
+    });
   }
 
   function stopScan() {
-    if (!state.scanController.isRunning) {
+    if (!state.scanController.isRunning && !state.scanController.isPaused) {
       return;
     }
 
-    state.scanController.isCancelled = true;
-    state.scanController.isPaused = false;
-    chrome.runtime.sendMessage({ type: 'cancelScan' });
+    sendScanMessage({ type: 'stopScan' }).then((response) => {
+      if (response?.state) {
+        applyBackgroundScanState(response.state);
+      }
+    });
   }
 
   function finishScan(message, toastType) {
@@ -1663,6 +1860,28 @@ document.addEventListener('DOMContentLoaded', () => {
       content.className = `folder-children ${showChildren ? 'show' : ''}`;
       children.forEach((child) => content.appendChild(child));
 
+      const expandFolderNow = () => {
+        state.expandedFolderIds.add(node.id);
+        if (content.childElementCount === 0) {
+          const fragment = document.createDocumentFragment();
+          node.children.forEach((child) => {
+            const rendered = renderManageNode(child);
+            if (rendered) {
+              fragment.appendChild(rendered);
+            }
+          });
+          content.appendChild(fragment);
+        }
+        header.classList.add('expanded');
+        content.classList.add('show');
+      };
+
+      const collapseFolderNow = () => {
+        state.expandedFolderIds.delete(node.id);
+        header.classList.remove('expanded');
+        content.classList.remove('show');
+      };
+
       const toggleFolderExpand = () => {
         if (isEditing) {
           return;
@@ -1673,24 +1892,11 @@ document.addEventListener('DOMContentLoaded', () => {
           content.classList.toggle('show', nextShown);
           return;
         }
-        const nextExpanded = !state.expandedFolderIds.has(node.id);
-        if (nextExpanded) {
-          state.expandedFolderIds.add(node.id);
-          if (content.childElementCount === 0) {
-            const fragment = document.createDocumentFragment();
-            node.children.forEach((child) => {
-              const rendered = renderManageNode(child);
-              if (rendered) {
-                fragment.appendChild(rendered);
-              }
-            });
-            content.appendChild(fragment);
-          }
+        if (state.expandedFolderIds.has(node.id)) {
+          collapseFolderNow();
         } else {
-          state.expandedFolderIds.delete(node.id);
+          expandFolderNow();
         }
-        header.classList.toggle('expanded', nextExpanded);
-        content.classList.toggle('show', nextExpanded);
       };
 
       header.addEventListener('click', toggleFolderExpand);
@@ -1707,11 +1913,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         event.preventDefault();
         header.classList.add('drop-target');
+        // 折叠文件夹悬停片刻自动展开，一次拖拽就能深入多层目录
+        if (!isFiltering && !state.expandedFolderIds.has(node.id)) {
+          scheduleDragExpand(node.id, expandFolderNow);
+        }
       });
-      header.addEventListener('dragleave', () => header.classList.remove('drop-target'));
+      header.addEventListener('dragleave', (event) => {
+        header.classList.remove('drop-target');
+        if (!header.contains(event.relatedTarget)) {
+          cancelDragExpand(node.id);
+        }
+      });
       header.addEventListener('drop', async (event) => {
         event.preventDefault();
         header.classList.remove('drop-target');
+        cancelDragExpand(node.id);
         await moveDraggedItemToFolder(node.id);
       });
       header.addEventListener('dragstart', (event) => {
@@ -1725,6 +1941,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         section.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
+        setDragGhostFromFolder(node.id);
+        applyDragGhostImage(event);
+        startDragAutoScroll();
       });
       header.addEventListener('dragend', () => {
         clearDragState();
@@ -1894,22 +2113,40 @@ document.addEventListener('DOMContentLoaded', () => {
         article.classList.add('dragging');
       }
       event.dataTransfer.effectAllowed = 'move';
+      setDragGhostFromDraggedItem();
+      applyDragGhostImage(event);
+      startDragAutoScroll();
     });
     article.addEventListener('dragend', () => {
       clearDragState();
     });
     article.addEventListener('dragover', (event) => {
-      if (!state.draggedItem || (state.draggedItem.type !== 'bookmark' && state.draggedItem.type !== 'bookmark-group')) {
+      if (!isBookmarkCardDropAllowed(bookmark.id)) {
         return;
       }
       event.preventDefault();
-      article.classList.add('drop-before');
+      // 上半区插到目标前面，下半区插到目标后面
+      const rect = article.getBoundingClientRect();
+      const insertAfter = event.clientY > rect.top + rect.height / 2;
+      article.classList.toggle('drop-before', !insertAfter);
+      article.classList.toggle('drop-after', insertAfter);
     });
-    article.addEventListener('dragleave', () => article.classList.remove('drop-before'));
-    article.addEventListener('drop', async (event) => {
-      event.preventDefault();
+    article.addEventListener('dragleave', (event) => {
+      if (article.contains(event.relatedTarget)) {
+        return;
+      }
       article.classList.remove('drop-before');
-      await moveDraggedBookmarkBefore(bookmark.id);
+      article.classList.remove('drop-after');
+    });
+    article.addEventListener('drop', async (event) => {
+      if (!isBookmarkCardDropAllowed(bookmark.id)) {
+        return;
+      }
+      event.preventDefault();
+      const insertAfter = article.classList.contains('drop-after');
+      article.classList.remove('drop-before');
+      article.classList.remove('drop-after');
+      await moveDraggedItemBesideBookmark(bookmark.id, insertAfter);
     });
 
     return article;
@@ -2054,6 +2291,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedCount = state.selectedManageIds.size;
     ui.selectionSummary.textContent = getManageSelectionSummary(selectedCount);
     ui.deleteSelectionBtn.disabled = selectedCount === 0;
+    if (ui.moveSelectionBtn) {
+      ui.moveSelectionBtn.disabled = selectedCount === 0;
+    }
   }
 
   function getManageSelectionSummary(selectedCount) {
@@ -3609,11 +3849,281 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(t('manage.bookmarksDeleted', { n: ids.length }), 'error');
   }
 
+  // ===== "移动到…"批量移动对话框 =====
+
+  let moveFolderOptions = [];
+  let moveFolderActiveIndex = 0;
+
+  function handleManageShortcuts(event) {
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      return;
+    }
+    if (event.key !== 'm' && event.key !== 'M') {
+      return;
+    }
+    if (ui.managePage.classList.contains('hidden')) {
+      return;
+    }
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
+      return;
+    }
+    if (state.selectedManageIds.size === 0) {
+      return;
+    }
+    event.preventDefault();
+    openMoveFolderDialog();
+  }
+
+  function buildMoveFolderOptions() {
+    // 根层级（书签栏/其他书签等）不在 folderOptions 里，这里补上
+    const rootOptions = state.rootNodes
+      .filter((node) => node.children)
+      .map((node) => ({
+        id: node.id,
+        label: node.title || t('manage.untitledFolder')
+      }));
+    return [...rootOptions, ...state.folderOptions];
+  }
+
+  function isMoveTargetCurrent(folderId) {
+    const parentIds = new Set();
+    state.selectedManageIds.forEach((id) => {
+      const bookmark = state.bookmarkMap.get(id);
+      if (bookmark?.parentId) {
+        parentIds.add(bookmark.parentId);
+      }
+    });
+    return parentIds.size === 1 && parentIds.has(folderId);
+  }
+
+  function openMoveFolderDialog() {
+    if (state.selectedManageIds.size === 0) {
+      showToast(t('manage.selectMoveFirst'), 'warning');
+      return;
+    }
+    ui.moveFolderSearchInput.value = '';
+    moveFolderActiveIndex = 0;
+    renderMoveFolderOptions();
+    if (ui.moveFolderDialogTitleSummary) {
+      ui.moveFolderDialogTitleSummary.textContent = t('manage.moveDialogSummary', { n: state.selectedManageIds.size });
+    }
+    ui.moveFolderDialog.classList.remove('hidden');
+    requestAnimationFrame(() => ui.moveFolderDialog.classList.add('show'));
+    // 过渡窗口期内 focus() 会静默失败（实测），等弹窗过渡结束后再聚焦
+    setTimeout(() => ui.moveFolderSearchInput.focus(), 260);
+  }
+
+  function hideMoveFolderDialog() {
+    ui.moveFolderDialog.classList.remove('show');
+    setTimeout(() => ui.moveFolderDialog.classList.add('hidden'), 180);
+  }
+
+  function renderMoveFolderOptions() {
+    const query = (ui.moveFolderSearchInput.value || '').trim().toLowerCase();
+    moveFolderOptions = buildMoveFolderOptions()
+      .filter((option) => !query || option.label.toLowerCase().includes(query));
+    moveFolderActiveIndex = Math.min(moveFolderActiveIndex, Math.max(0, moveFolderOptions.length - 1));
+
+    ui.moveFolderList.innerHTML = '';
+    if (moveFolderOptions.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'move-folder-empty';
+      empty.textContent = t('manage.moveDialogEmpty');
+      ui.moveFolderList.appendChild(empty);
+      return;
+    }
+
+    moveFolderOptions.forEach((option, index) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = `move-folder-option${index === moveFolderActiveIndex ? ' is-active' : ''}`;
+      row.dataset.folderId = option.id;
+      row.disabled = isMoveTargetCurrent(option.id);
+      row.innerHTML = `
+        <span class="move-folder-icon">${ICONS.folder}</span>
+        <span class="move-folder-label">${escapeHtml(option.label)}</span>
+      `;
+      row.addEventListener('click', () => confirmMoveSelectionTo(option.id));
+      ui.moveFolderList.appendChild(row);
+    });
+  }
+
+  function updateMoveFolderActiveRow() {
+    const rows = ui.moveFolderList.querySelectorAll('.move-folder-option');
+    rows.forEach((row, index) => {
+      row.classList.toggle('is-active', index === moveFolderActiveIndex);
+    });
+    rows[moveFolderActiveIndex]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function handleMoveFolderSearchKeydown(event) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (moveFolderOptions.length === 0) {
+        return;
+      }
+      const delta = event.key === 'ArrowDown' ? 1 : -1;
+      moveFolderActiveIndex = (moveFolderActiveIndex + delta + moveFolderOptions.length) % moveFolderOptions.length;
+      updateMoveFolderActiveRow();
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const option = moveFolderOptions[moveFolderActiveIndex];
+      if (option && !isMoveTargetCurrent(option.id)) {
+        confirmMoveSelectionTo(option.id);
+      }
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      hideMoveFolderDialog();
+    }
+  }
+
+  async function confirmMoveSelectionTo(folderId) {
+    const ids = Array.from(state.selectedManageIds);
+    hideMoveFolderDialog();
+    if (ids.length === 0) {
+      return;
+    }
+    await moveBookmarkIdsToFolder(ids, folderId, t('manage.movedCount', { n: ids.length }));
+    clearManageSelection();
+  }
+
   function clearDragState() {
     state.draggedItem = null;
     document.querySelectorAll('.dragging').forEach((element) => element.classList.remove('dragging'));
     document.querySelectorAll('.drop-target').forEach((element) => element.classList.remove('drop-target'));
     document.querySelectorAll('.drop-before').forEach((element) => element.classList.remove('drop-before'));
+    document.querySelectorAll('.drop-after').forEach((element) => element.classList.remove('drop-after'));
+    cancelDragExpand();
+    stopDragAutoScroll();
+    removeDragGhost();
+  }
+
+  const DRAG_AUTO_SCROLL_EDGE_PX = 80;
+  const DRAG_AUTO_SCROLL_MAX_SPEED = 22;
+  const DRAG_EXPAND_DELAY_MS = 650;
+
+  // 拖拽接近视口上下边缘时自动滚动，长距离移动不再需要"拖一段、放一下"
+  function startDragAutoScroll() {
+    stopDragAutoScroll();
+    const scrollElement = document.scrollingElement;
+    if (!scrollElement) {
+      return;
+    }
+    let lastClientY = null;
+    const handleDragOver = (event) => {
+      lastClientY = event.clientY;
+    };
+    const tick = () => {
+      if (lastClientY !== null) {
+        const viewHeight = window.innerHeight;
+        if (lastClientY < DRAG_AUTO_SCROLL_EDGE_PX) {
+          scrollElement.scrollTop -= DRAG_AUTO_SCROLL_MAX_SPEED * (1 - lastClientY / DRAG_AUTO_SCROLL_EDGE_PX);
+        } else if (lastClientY > viewHeight - DRAG_AUTO_SCROLL_EDGE_PX) {
+          scrollElement.scrollTop += DRAG_AUTO_SCROLL_MAX_SPEED * (1 - (viewHeight - lastClientY) / DRAG_AUTO_SCROLL_EDGE_PX);
+        }
+      }
+      autoScroll.frame = requestAnimationFrame(tick);
+    };
+    const autoScroll = { handleDragOver, frame: requestAnimationFrame(tick) };
+    document.addEventListener('dragover', handleDragOver);
+    state.dragAutoScroll = autoScroll;
+  }
+
+  function stopDragAutoScroll() {
+    const autoScroll = state.dragAutoScroll;
+    if (!autoScroll) {
+      return;
+    }
+    if (autoScroll.frame) {
+      cancelAnimationFrame(autoScroll.frame);
+    }
+    document.removeEventListener('dragover', autoScroll.handleDragOver);
+    state.dragAutoScroll = null;
+  }
+
+  function scheduleDragExpand(folderId, expand) {
+    const pending = state.dragExpandTimer;
+    if (pending && pending.folderId === folderId) {
+      // dragover 会连续触发，不能每次都重置倒计时，否则永远到不了 650ms
+      return;
+    }
+    cancelDragExpand();
+    state.dragExpandTimer = {
+      folderId,
+      timer: setTimeout(() => {
+        state.dragExpandTimer = null;
+        expand();
+      }, DRAG_EXPAND_DELAY_MS)
+    };
+  }
+
+  function cancelDragExpand(folderId) {
+    const pending = state.dragExpandTimer;
+    if (!pending) {
+      return;
+    }
+    if (!folderId || pending.folderId === folderId) {
+      clearTimeout(pending.timer);
+      state.dragExpandTimer = null;
+    }
+  }
+
+  // 自定义拖影：小尺寸 chip 替代浏览器默认的整卡截图
+  function setDragGhostFromDraggedItem() {
+    const dragged = state.draggedItem;
+    if (!dragged) {
+      return;
+    }
+    if (dragged.type === 'bookmark-group') {
+      const first = state.bookmarkMap.get(dragged.ids[0]);
+      setDragGhost(first?.title || t('manage.dragHintGroup', { n: dragged.ids.length }), dragged.ids.length);
+      return;
+    }
+    if (dragged.type === 'bookmark') {
+      const bookmark = state.bookmarkMap.get(dragged.id);
+      setDragGhost(bookmark?.title || '', 1, false);
+      return;
+    }
+    if (dragged.type === 'folder') {
+      const folder = state.folderMap.get(dragged.id);
+      setDragGhost(folder?.title || '', 1, true);
+    }
+  }
+
+  function setDragGhostFromFolder(folderId) {
+    const folder = state.folderMap.get(folderId);
+    setDragGhost(folder?.title || '', 1, true);
+  }
+
+  function setDragGhost(label, count, isFolder) {
+    removeDragGhost();
+    const ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.innerHTML = `
+      <span class="drag-ghost-icon">${isFolder ? ICONS.folder : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'}</span>
+      <span class="drag-ghost-label">${escapeHtml(label)}</span>
+      ${count > 1 ? `<span class="drag-ghost-count">${count}</span>` : ''}
+    `;
+    document.body.appendChild(ghost);
+    state.dragGhost = ghost;
+    return ghost;
+  }
+
+  function removeDragGhost() {
+    state.dragGhost?.remove();
+    state.dragGhost = null;
+  }
+
+  function applyDragGhostImage(event) {
+    if (state.dragGhost && event.dataTransfer) {
+      event.dataTransfer.setDragImage(state.dragGhost, 14, 14);
+    }
   }
 
   function canDropDraggedItemIntoFolder(folderId) {
@@ -3630,6 +4140,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return !isFolderDescendant(state.draggedItem.id, folderId);
+  }
+
+  function isBookmarkCardDropAllowed(targetId) {
+    const dragged = state.draggedItem;
+    if (!dragged) {
+      return false;
+    }
+    if (dragged.type === 'bookmark') {
+      return dragged.id !== targetId;
+    }
+    if (dragged.type === 'bookmark-group') {
+      return !dragged.ids.includes(targetId);
+    }
+    if (dragged.type === 'folder') {
+      const target = state.bookmarkMap.get(targetId);
+      return !!target && !isFolderDescendant(dragged.id, target.parentId);
+    }
+    return false;
   }
 
   function isFolderDescendant(folderId, possibleDescendantId) {
@@ -3684,27 +4212,32 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(message, 'warning');
   }
 
-  async function moveBookmarkIdsBeforeTarget(ids, targetId, message) {
+  async function moveBookmarkIdsBesideTarget(ids, targetId, insertAfter, message) {
     const target = state.bookmarkMap.get(targetId);
     if (!target) {
       return;
     }
 
+    const getMovedNode = (id) => state.bookmarkMap.get(id) || state.folderMap.get(id);
+
     const previousState = ids.map((id) => {
-      const bookmark = state.bookmarkMap.get(id);
-      return {
+      const node = getMovedNode(id);
+      return node ? {
         id,
-        parentId: bookmark.parentId,
-        index: bookmark.index
-      };
-    });
+        parentId: node.parentId,
+        index: node.index
+      } : null;
+    }).filter(Boolean);
+    if (previousState.length === 0) {
+      return;
+    }
 
     const shiftCount = ids.reduce((count, id) => {
-      const bookmark = state.bookmarkMap.get(id);
-      return bookmark && bookmark.parentId === target.parentId && bookmark.index < target.index ? count + 1 : count;
+      const node = getMovedNode(id);
+      return node && node.parentId === target.parentId && node.index < target.index ? count + 1 : count;
     }, 0);
 
-    let insertIndex = Math.max(0, target.index - shiftCount);
+    let insertIndex = Math.max(0, target.index - shiftCount + (insertAfter ? 1 : 0));
     for (const id of ids) {
       await new Promise((resolve, reject) => {
         chrome.bookmarks.move(id, { parentId: target.parentId, index: insertIndex }, () => {
@@ -3786,7 +4319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(t('manage.movedFolder', { t: folder.title }), 'warning');
   }
 
-  async function moveDraggedBookmarkBefore(targetId) {
+  async function moveDraggedItemBesideBookmark(targetId, insertAfter) {
     if (!state.draggedItem) {
       return;
     }
@@ -3795,24 +4328,44 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.draggedItem.ids.includes(targetId)) {
         return;
       }
-      await moveBookmarkIdsBeforeTarget(
+      await moveBookmarkIdsBesideTarget(
         state.draggedItem.ids,
         targetId,
+        insertAfter,
         t('manage.reorderedCount', { n: state.draggedItem.ids.length })
       );
       return;
     }
 
-    if (state.draggedItem.type !== 'bookmark' || state.draggedItem.id === targetId) {
+    if (state.draggedItem.type === 'bookmark') {
+      if (state.draggedItem.id === targetId) {
+        return;
+      }
+      const dragged = state.bookmarkMap.get(state.draggedItem.id);
+      if (!dragged) {
+        return;
+      }
+      await moveBookmarkIdsBesideTarget(
+        [dragged.id],
+        targetId,
+        insertAfter,
+        t('manage.reorderedTitle', { t: dragged.title })
+      );
       return;
     }
 
-    const dragged = state.bookmarkMap.get(state.draggedItem.id);
-    if (!dragged) {
-      return;
+    if (state.draggedItem.type === 'folder') {
+      const folder = state.folderMap.get(state.draggedItem.id);
+      if (!folder) {
+        return;
+      }
+      await moveBookmarkIdsBesideTarget(
+        [folder.id],
+        targetId,
+        insertAfter,
+        t('manage.movedFolder', { t: folder.title })
+      );
     }
-
-    await moveBookmarkIdsBeforeTarget([dragged.id], targetId, t('manage.reorderedTitle', { t: dragged.title }));
   }
 
   async function removeBookmarksByIds(ids, recordUndo) {
@@ -4102,32 +4655,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderManageTree();
   }
 
-  function validateUrl(url) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({
-        action: 'validateUrlSimple',
-        url,
-        timeout: CONFIG.TIMEOUT * 1000
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          resolve({
-            valid: false,
-            isInvalid: false,
-            error: true,
-            reason: chrome.runtime.lastError.message
-          });
-          return;
-        }
-
-        resolve({
-          valid: response?.valid ?? false,
-          isInvalid: response?.isInvalid ?? false,
-          error: !response
-        });
-      });
-    });
-  }
-
   function showToast(message, type = 'info', duration = 2600) {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -4206,33 +4733,100 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const found = [];
     TAG_RULES.forEach((rule) => {
-      if (topDomains.some((item) => rule.match.some((domain) => item.domain.includes(domain)))) {
+      // 后缀匹配而非子串匹配：netflix.com / xbox.com 都包含 "x.com"，子串会误打社交标签
+      if (topDomains.some((item) => rule.match.some((domain) => matchesDomainSuffix(item.domain, domain)))) {
         found.push(rule.label);
       }
     });
     return found.slice(0, 5);
   }
 
-  function normalizeUrl(url, urlCounts) {
+  function matchesDomainSuffix(domain, ruleDomain) {
+    return domain === ruleDomain || domain.endsWith(`.${ruleDomain}`);
+  }
+
+  // 中文标题没有分词，纯 token 统计对中文几乎无效（整句变成一个 token、重复率趋近 0），
+  // 所以用一份小型主题词典按词匹配；拉丁词沿用 tokenizeTitle 作为补充。只作为轻量参考。
+  const PORTRAIT_KEYWORD_DICT = [
+    { zh: '前端', en: 'Frontend', terms: ['前端', 'frontend', 'css', 'html', 'javascript', 'typescript', 'vue', 'react'] },
+    { zh: '后端', en: 'Backend', terms: ['后端', 'backend', 'api', '数据库', 'database', 'python', 'java', 'golang', 'rust'] },
+    { zh: 'AI', en: 'AI', terms: ['ai', '人工智能', '机器学习', '深度学习', 'gpt', 'llm', 'claude', 'prompt'] },
+    { zh: '设计', en: 'Design', terms: ['设计', 'design', 'figma', 'ui', 'ux', '配色', '字体', 'icon', '灵感'] },
+    { zh: '产品', en: 'Product', terms: ['产品', 'product', '需求', '用户体验', '原型'] },
+    { zh: '效率工具', en: 'Productivity', terms: ['工具', 'tool', '效率', '插件', 'extension', '自动化'] },
+    { zh: '教程文档', en: 'Tutorials', terms: ['教程', 'tutorial', '入门', '指南', 'guide', '课程', 'course', '文档', 'docs', '手册'] },
+    { zh: '博客阅读', en: 'Reading', terms: ['博客', 'blog', '周刊', 'newsletter', 'weekly', '文章', 'article', '资讯'] },
+    { zh: '视频播客', en: 'Video', terms: ['视频', 'video', 'youtube', 'bilibili', 'b站', '播客', 'podcast'] },
+    { zh: '面试求职', en: 'Career', terms: ['面试', 'interview', '简历', 'resume', '求职', '招聘', 'career'] },
+    { zh: '理财投资', en: 'Finance', terms: ['理财', '投资', '股票', '基金', 'finance', 'stock', '保险'] },
+    { zh: '生活兴趣', en: 'Lifestyle', terms: ['旅行', 'travel', '菜谱', 'recipe', '健身', 'fitness', '摄影', '电影', '音乐', '游戏'] },
+    { zh: '学术研究', en: 'Research', terms: ['论文', 'paper', 'arxiv', '学术', '文献', 'research'] }
+  ];
+
+  const keywordRegexCache = new Map();
+
+  function extractPortraitKeywords(bookmarks) {
+    const isEn = state.locale === 'en-US';
+    const dictCounts = new Map();
+    const tokenCounts = new Map();
+
+    bookmarks.forEach((bookmark) => {
+      const lowerTitle = String(bookmark.title || '').toLowerCase();
+      PORTRAIT_KEYWORD_DICT.forEach((entry) => {
+        if (keywordMatchesTitle(lowerTitle, entry.terms)) {
+          dictCounts.set(entry, (dictCounts.get(entry) || 0) + 1);
+        }
+      });
+      tokenizeTitle(bookmark.title).forEach((word) => {
+        tokenCounts.set(word, (tokenCounts.get(word) || 0) + 1);
+      });
+    });
+
+    const merged = new Map();
+    dictCounts.forEach((count, entry) => {
+      merged.set(isEn ? entry.en : entry.zh, count);
+    });
+    tokenCounts.forEach((count, word) => {
+      merged.set(word, (merged.get(word) || 0) + count);
+    });
+
+    return Array.from(merged.entries())
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 8)
+      .map(([keyword, count]) => ({ keyword, count }));
+  }
+
+  function keywordMatchesTitle(lowerTitle, terms) {
+    return terms.some((term) => {
+      if (/[\u4e00-\u9fff]/.test(term)) {
+        return lowerTitle.includes(term);
+      }
+      // 拉丁词用词边界匹配，避免 "js" 这类短词误命中 "json" 的子串
+      let pattern = keywordRegexCache.get(term);
+      if (!pattern) {
+        pattern = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+        keywordRegexCache.set(term, pattern);
+      }
+      return pattern.test(lowerTitle);
+    });
+  }
+
+  function parseUrlSafe(url) {
     try {
-      const parsed = new URL(url);
-      parsed.hash = '';
-      let normalized = parsed.toString();
-      normalized = normalized.replace(/\/$/, '');
-      urlCounts.set(normalized, (urlCounts.get(normalized) || 0) + 1);
+      return new URL(url);
     } catch (error) {
-      urlCounts.set(url, (urlCounts.get(url) || 0) + 1);
+      return null;
     }
   }
 
+  function normalizeParsedUrl(parsed) {
+    parsed.hash = '';
+    return parsed.toString().replace(/\/$/, '');
+  }
+
   function normalizeUrlValue(url) {
-    try {
-      const parsed = new URL(url);
-      parsed.hash = '';
-      return parsed.toString().replace(/\/$/, '');
-    } catch (error) {
-      return url;
-    }
+    const parsed = parseUrlSafe(url);
+    return parsed ? normalizeParsedUrl(parsed) : url;
   }
 
   function collectDuplicateBookmarkIds() {
@@ -4266,15 +4860,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function formatShortDate(date) {
-    return new Intl.DateTimeFormat('zh-CN', {
+    return new Intl.DateTimeFormat(state.locale || 'zh-CN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     }).format(date);
-  }
-
-  function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   function escapeHtml(value) {

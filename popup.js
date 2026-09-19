@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const totalCount = document.getElementById('totalCount');
   const invalidCount = document.getElementById('invalidCount');
   const quickScanBtn = document.getElementById('quickScanBtn');
+  const stopScanBtn = document.getElementById('stopScanBtn');
   const openManagerBtn = document.getElementById('openManagerBtn');
   const refreshBtn = document.getElementById('refreshBtn');
   const statusMessage = document.getElementById('statusMessage');
@@ -21,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
   const clearResultsBtn = document.getElementById('clearResultsBtn');
 
-  let isScanning = false;
-  let scanStartTime = 0;
+  // 后台扫描引擎的状态镜像（scanState 快照）
+  let currentScanState = null;
   let scanDurationInterval = null;
   let invalidBookmarks = [];
   let selectedInvalidIds = new Set();
@@ -38,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setVersionInfo();
     loadStats();
+    syncScanStateFromBackground();
   }
 
   function setVersionInfo() {
@@ -48,12 +50,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setupEventListeners() {
-    quickScanBtn.addEventListener('click', startQuickScan);
+    quickScanBtn.addEventListener('click', handleScanButtonClick);
+    stopScanBtn.addEventListener('click', handleStopScan);
     openManagerBtn.addEventListener('click', openManager);
     refreshBtn.addEventListener('click', handleRefresh);
     selectAllBtn.addEventListener('click', toggleSelectAll);
     deleteSelectedBtn.addEventListener('click', deleteSelectedBookmarks);
     clearResultsBtn.addEventListener('click', clearStoredResults);
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.scanState) {
+        applyScanState(changes.scanState.newValue);
+      }
+    });
   }
 
   async function handleRefresh() {
@@ -133,100 +141,155 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(update);
   }
 
-  async function startQuickScan() {
-    if (isScanning) {
+  async function handleScanButtonClick() {
+    if (currentScanState?.status === 'running') {
       return;
     }
 
-    isScanning = true;
-    quickScanBtn.disabled = true;
-    scanSection.classList.add('show');
-    scanStartTime = Date.now();
+    // 暂停中：主按钮此时是「继续扫描」
+    if (currentScanState?.status === 'paused') {
+      const resumeResponse = await sendScanMessage({ type: 'resumeScan' });
+      applyScanState(resumeResponse?.state, { announce: true });
+      return;
+    }
+
     invalidBookmarks = [];
     selectedInvalidIds.clear();
+    renderResultPanel(null);
+    resetScanProgressUi();
+    showStatus(t('popup.statusScanning'), 'warning');
+
+    const response = await sendScanMessage({ type: 'startScan' });
+    if (response?.state) {
+      applyScanState(response.state, { announce: true });
+    } else {
+      applyScanState({ status: 'idle' });
+      showStatus(t('popup.statusScanFailed'), 'error');
+    }
+  }
+
+  function handleStopScan() {
+    sendScanMessage({ type: 'stopScan' }).then((response) => {
+      if (response?.state) {
+        applyScanState(response.state, { announce: true });
+      }
+    });
+  }
+
+  // 打开 popup 时接上后台扫描状态
+  async function syncScanStateFromBackground() {
+    const response = await sendScanMessage({ type: 'getScanState' });
+    if (response?.state) {
+      applyScanState(response.state, { announce: false });
+      const status = response.state.status;
+      if (status === 'completed' || status === 'cancelled' || status === 'interrupted') {
+        // 用户已看到最终结果，清除扩展图标角标
+        sendScanMessage({ type: 'dismissScanBadge' });
+      }
+    }
+  }
+
+  function applyScanState(scan, options = {}) {
+    if (!scan || !scan.status) {
+      return;
+    }
+
+    const prevStatus = currentScanState?.status || 'idle';
+    currentScanState = scan;
+
+    if (scan.status === 'running' || scan.status === 'paused') {
+      scanSection.classList.add('show');
+      stopScanBtn.classList.remove('hidden');
+      updateProgress(scan.total > 0 ? Math.round((scan.checked / scan.total) * 100) : 0);
+      scanChecked.textContent = String(scan.checked);
+      scanInvalid.textContent = String(scan.invalidCount);
+
+      clearInterval(scanDurationInterval);
+      updateElapsedDisplay(scan);
+      if (scan.status === 'running') {
+        scanDurationInterval = setInterval(() => updateElapsedDisplay(currentScanState), 1000);
+        quickScanBtn.disabled = true;
+        setScanButtonLabel(t('popup.quickScan'));
+        scanText.textContent = t('popup.checking');
+      } else {
+        quickScanBtn.disabled = false;
+        setScanButtonLabel(t('popup.resumeScan'));
+        scanText.textContent = t('popup.paused');
+      }
+      return;
+    }
+
+    // completed / cancelled / interrupted / idle
+    clearInterval(scanDurationInterval);
+    scanDurationInterval = null;
+    stopScanBtn.classList.add('hidden');
+    quickScanBtn.disabled = false;
+    setScanButtonLabel(t('popup.quickScan'));
+
+    const wasActive = prevStatus === 'running' || prevStatus === 'paused';
+    if ((scan.status === 'completed' || scan.status === 'cancelled') && (wasActive || options.announce === true)) {
+      updateProgress(100);
+      if (options.announce !== false) {
+        loadStats().then(() => showFinalStatus(scan));
+      }
+    }
+  }
+
+  function showFinalStatus(scan) {
+    if (scan.total === 0) {
+      showStatus(t('popup.statusNoScannable'), 'warning');
+      return;
+    }
+    if (scan.status === 'cancelled' || scan.status === 'interrupted') {
+      showStatus(t('popup.statusScanCancelled'), 'warning');
+      return;
+    }
+    if (scan.invalidCount > 0) {
+      showStatus(t('popup.statusFoundInvalid', { n: scan.invalidCount }), 'warning');
+    } else {
+      showStatus(t('popup.statusAllValid'), 'success');
+    }
+  }
+
+  function resetScanProgressUi() {
     updateProgress(0);
     scanChecked.textContent = '0';
     scanInvalid.textContent = '0';
     scanTime.textContent = '0s';
     scanText.textContent = t('popup.checking');
-    renderResultPanel(null);
-
-    scanDurationInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - scanStartTime) / 1000);
-      scanTime.textContent = `${elapsed}s`;
-    }, 1000);
-
-    showStatus(t('popup.statusScanning'), 'warning');
-
-    try {
-      const tree = await getBookmarkTree();
-      const bookmarks = [];
-
-      traverseBookmarks(tree, (node, path) => {
-        if (isScannable(node.url)) {
-          bookmarks.push({
-            id: node.id,
-            title: node.title || node.url,
-            url: node.url,
-            parentId: node.parentId,
-            path
-          });
-        }
-      });
-
-      if (bookmarks.length === 0) {
-        showStatus(t('popup.statusNoScannable'), 'warning');
-        finishScan();
-        return;
-      }
-
-      let checked = 0;
-      const batchSize = 10;
-
-      for (let index = 0; index < bookmarks.length; index += batchSize) {
-        const batch = bookmarks.slice(index, index + batchSize);
-
-        await Promise.all(batch.map(async (bookmark) => {
-          const result = await validateUrl(bookmark.url);
-          if (result.isInvalid) {
-            invalidBookmarks.push(bookmark);
-          }
-
-          checked += 1;
-          scanChecked.textContent = String(checked);
-          scanInvalid.textContent = String(invalidBookmarks.length);
-          updateProgress(Math.round((checked / bookmarks.length) * 100));
-        }));
-      }
-
-      selectedInvalidIds = new Set(invalidBookmarks.map((bookmark) => bookmark.id));
-      await persistScanResults();
-
-      animateNumber(invalidCount, parseInt(invalidCount.textContent, 10) || 0, invalidBookmarks.length, 500);
-      renderResultPanel(new Date().toISOString());
-
-      if (invalidBookmarks.length > 0) {
-        showStatus(t('popup.statusFoundInvalid', { n: invalidBookmarks.length }), 'warning');
-      } else {
-        showStatus(t('popup.statusAllValid'), 'success');
-      }
-    } catch (error) {
-      showStatus(`${t('popup.statusScanFailed')}: ${error.message}`, 'error');
-    }
-
-    finishScan();
   }
 
-  function finishScan() {
-    isScanning = false;
-    quickScanBtn.disabled = false;
-    clearInterval(scanDurationInterval);
-    scanText.textContent = invalidBookmarks.length > 0 ? t('popup.statusResultsReady') : t('popup.statusScanComplete');
-    updateProgress(100);
+  function updateElapsedDisplay(scan) {
+    if (!scan) return;
+    const elapsedMs = (scan.elapsedMs || 0) + (scan.status === 'running' ? Date.now() - (scan.segmentStart || Date.now()) : 0);
+    scanTime.textContent = `${Math.max(0, Math.floor(elapsedMs / 1000))}s`;
+  }
+
+  function setScanButtonLabel(text) {
+    const label = quickScanBtn.querySelector('[data-i18n]');
+    if (label) {
+      label.textContent = text;
+    }
+  }
+
+  function sendScanMessage(payload) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage(payload, (response) => {
+          if (chrome.runtime.lastError) {
+            resolve(null);
+            return;
+          }
+          resolve(response);
+        });
+      } catch (error) {
+        resolve(null);
+      }
+    });
   }
 
   function updateProgress(percent) {
-    const circumference = 2 * Math.PI * 20;
+    const circumference = 2 * Math.PI * 25;
     const offset = circumference - (percent / 100) * circumference;
     scanProgress.style.strokeDashoffset = offset;
     scanPercent.textContent = `${percent}%`;
@@ -371,22 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openManager() {
     chrome.tabs.create({ url: chrome.runtime.getURL('profile.html') });
-  }
-
-  function validateUrl(url) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: 'validateUrlSimple', url }, (response) => {
-        if (chrome.runtime.lastError) {
-          resolve({ valid: true, isInvalid: false });
-          return;
-        }
-
-        resolve({
-          valid: response?.valid ?? true,
-          isInvalid: response?.isInvalid ?? false
-        });
-      });
-    });
   }
 
   function showStatus(message, type) {
