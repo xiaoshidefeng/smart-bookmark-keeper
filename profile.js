@@ -221,6 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     aiExpandedActionGroups: new Set(),
     aiUndoAction: null,
+    aiUndoWarnings: [],
     undoAction: null
   };
 
@@ -466,6 +467,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.portraitPage.classList.toggle('hidden', !isPortrait);
     ui.managePage.classList.toggle('hidden', !isManage);
     ui.aiManagePage.classList.toggle('hidden', !isAiManage);
+
+    if (isAiManage) {
+      renderAiPlan();
+    }
 
     if (isPortrait && state.portraitStats) {
       renderPortrait();
@@ -2361,16 +2366,43 @@ document.addEventListener('DOMContentLoaded', () => {
     await new Promise((resolve) => chrome.storage.local.set({ manageDragTipDismissed: true }, resolve));
   }
 
-  function collectAiScope() {
-    const scopedBookmarks = Array.from(state.bookmarkMap.values()).filter((bookmark) => {
-      if (state.aiScopeMode === 'filtered') {
-        return matchesSearch(bookmark.searchText) && passesManageFilter(bookmark);
+  function isBookmarkInAiScope(bookmark) {
+    if (state.aiScopeMode === 'filtered') {
+      return matchesSearch(bookmark.searchText) && passesManageFilter(bookmark);
+    }
+    if (state.aiScopeMode === 'selected') {
+      return state.selectedManageIds.has(bookmark.id);
+    }
+    return true;
+  }
+
+  function getAiScopeCounts() {
+    let bookmarkCount = 0;
+    const folderIds = new Set();
+    const needsFolderWalk = state.aiScopeMode !== 'all';
+    state.bookmarkMap.forEach((bookmark) => {
+      if (!isBookmarkInAiScope(bookmark)) {
+        return;
       }
-      if (state.aiScopeMode === 'selected') {
-        return state.selectedManageIds.has(bookmark.id);
+      bookmarkCount += 1;
+      if (!needsFolderWalk) {
+        return;
       }
-      return true;
+      let currentFolderId = bookmark.parentId || bookmark.parentFolderId || null;
+      while (currentFolderId && !folderIds.has(currentFolderId)) {
+        folderIds.add(currentFolderId);
+        const currentFolder = state.folderMap.get(currentFolderId);
+        currentFolderId = currentFolder?.parentId || currentFolder?.parentFolderId || null;
+      }
     });
+    return {
+      bookmarkCount,
+      folderCount: needsFolderWalk ? folderIds.size : state.folderMap.size
+    };
+  }
+
+  function collectAiScope() {
+    const scopedBookmarks = Array.from(state.bookmarkMap.values()).filter(isBookmarkInAiScope);
 
     const folderIds = new Set();
     scopedBookmarks.forEach((bookmark) => {
@@ -2411,8 +2443,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!ui.aiPlanStatus) {
       return;
     }
+    if (ui.aiManagePage?.classList.contains('hidden')) {
+      return;
+    }
 
-    const context = collectAiScope();
+    const scopeCounts = getAiScopeCounts();
     const visibleActions = state.aiPlan.validatedActions.filter((item) => !isAiActionDismissed(item.actionId));
     const validCount = visibleActions.filter((item) => item.executable).length;
     const isBusy = state.aiPlan.status === 'loading' || state.aiPlan.status === 'applying';
@@ -2420,7 +2455,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('is-active', button.dataset.aiScope === state.aiScopeMode);
     });
     if (ui.aiScopeHint) {
-      ui.aiScopeHint.textContent = context.scopeDescription;
+      ui.aiScopeHint.textContent = getAiScopeDescription(scopeCounts.bookmarkCount, scopeCounts.folderCount);
     }
     if (ui.aiUsageHint) {
       ui.aiUsageHint.textContent = getAiUsageDescription();
@@ -2507,7 +2542,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           </div>
           <div class="ai-history-title">${escapeHtml(item.instruction || t('ai.untitledTask'))}</div>
-          <div class="ai-history-meta">${escapeHtml(t('ai.historyMeta', { n: actionCount, v: validCount, s: formatAiScopeLabel(item.scopeLabel) }))}</div>
+          <div class="ai-history-meta">${escapeHtml(t('ai.historyMeta', { n: actionCount, v: validCount, s: formatAiScopeLabel(item.scopeLabel, item.scopeMode) }))}</div>
         </article>
       `;
     }).join('');
@@ -2736,7 +2771,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function formatAiScopeLabel(label) {
+  function formatAiScopeLabel(label, scopeMode) {
+    if (scopeMode === 'all') {
+      return t('ai.scopeAll');
+    }
+    if (scopeMode === 'filtered') {
+      return t('ai.scopeFiltered');
+    }
+    if (scopeMode === 'selected') {
+      return t('ai.scopeSelected');
+    }
+    // 旧历史条目未存 scopeMode，回退到按当时渲染出的文案反查
     if (!label) {
       return t('ai.scopeAll');
     }
@@ -2805,7 +2850,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.aiPlan.status === 'loading' || state.aiPlan.status === 'idle') {
       return;
     }
-    if (!state.aiPlan.warnings.length) {
+    const warnings = [...state.aiPlan.warnings, ...state.aiUndoWarnings];
+    if (!warnings.length) {
       return;
     }
 
@@ -2814,7 +2860,7 @@ document.addEventListener('DOMContentLoaded', () => {
     title.textContent = t('ai.attentionNeeded');
     ui.aiWarningList.appendChild(title);
 
-    state.aiPlan.warnings.forEach((warning) => {
+    warnings.forEach((warning) => {
       const item = document.createElement('div');
       item.className = 'ai-warning-item';
       item.textContent = warning;
@@ -2982,6 +3028,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearAiLoadingPhaseTimer();
     state.aiExpandedActionGroups.clear();
     state.aiActiveHistoryId = historyId;
+    state.aiUndoWarnings = [];
     state.aiPlan = {
       status: item.status,
       summary: item.summary || '',
@@ -3010,6 +3057,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function isAiActionDismissed(actionId) {
     return state.aiPlan.dismissedActionIds?.has(actionId);
+  }
+
+  async function fetchAiWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
   async function generateAiPlan() {
@@ -3048,6 +3105,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dismissedActionIds: new Set(),
       rawResponse: null
     };
+    state.aiUndoWarnings = [];
     beginAiLoadingSequence(context);
     renderAiPlan();
 
@@ -3061,12 +3119,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
+    let planGenerated = false;
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchAiWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      }, 60000);
 
       if (!response.ok) {
         let detail = null;
@@ -3115,38 +3174,35 @@ document.addEventListener('DOMContentLoaded', () => {
         plan: state.aiPlan
       }));
       state.aiUsageError = '';
+      planGenerated = true;
       renderAiPlan();
       showToast(t('toast.aiPlanGenerated'), 'success');
     } catch (error) {
       const errorMessage = String(error?.message || error);
-      const isFetchError = error instanceof TypeError || /Failed to fetch/i.test(errorMessage);
-      const historyId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `history-${Date.now()}`;
+      const isFetchError = error instanceof TypeError || error?.name === 'AbortError' || /Failed to fetch/i.test(errorMessage);
       state.aiPlan = {
         status: 'error',
         summary: isFetchError
           ? t('toast.aiUnreachable')
           : t('toast.aiPlanFailedDetail'),
-        warnings: [errorMessage],
+        warnings: [error?.name === 'AbortError' ? t('toast.aiUnreachable') : errorMessage],
         actions: [],
         validatedActions: [],
         dismissedActionIds: new Set(),
         rawResponse: null,
-        historyId,
+        historyId: null,
         source: 'current'
       };
       if (isFetchError) {
         state.aiUsageError = t('ai.usageServiceUnavailable');
       }
-      await saveAiHistoryEntry(buildAiHistoryEntry({
-        id: historyId,
-        instruction,
-        scopeLabel: context.scopeLabel,
-        plan: state.aiPlan
-      }));
+      state.aiUndoWarnings = [];
       renderAiPlan();
       showToast(t('toast.aiPlanFailed'), 'error');
     } finally {
-      await refreshAiUsage();
+      if (planGenerated) {
+        await refreshAiUsage();
+      }
     }
   }
 
@@ -3370,18 +3426,19 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAiPlan();
 
     const runtimeFolderPaths = new Map();
+    const virtualFolderRefs = new Map();
     const undoSteps = [];
     state.folderMap.forEach((folder) => {
-      runtimeFolderPaths.set(folder.path.join(' / '), folder.id);
+      const pathKey = folder.path.join(' / ');
+      runtimeFolderPaths.set(pathKey, folder.id);
+      virtualFolderRefs.set(pathKey, { id: folder.id, path: folder.path });
     });
 
     try {
       for (let index = 0; index < executableActions.length; index += 1) {
         const action = executableActions[index];
         if (action.type === 'create_folder') {
-          const parentFolder = resolveFolderReference(action.parentId, action.parentPath, new Map(
-            Array.from(runtimeFolderPaths.entries()).map(([key, id]) => [key, { id, path: key.split(' / ') }])
-          ));
+          const parentFolder = resolveFolderReference(action.parentId, action.parentPath, virtualFolderRefs);
           if (!parentFolder) {
             continue;
           }
@@ -3402,7 +3459,10 @@ document.addEventListener('DOMContentLoaded', () => {
             folderId: created.id,
             title: action.title || t('manage.untitledFolder')
           });
-          runtimeFolderPaths.set([...parentFolder.path, action.title].join(' / '), created.id);
+          const createdPath = [...parentFolder.path, action.title];
+          const createdKey = createdPath.join(' / ');
+          runtimeFolderPaths.set(createdKey, created.id);
+          virtualFolderRefs.set(createdKey, { id: created.id, path: createdPath });
           continue;
         }
 
@@ -3460,7 +3520,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           let targetFolderId = action.targetFolderId || null;
           if (!targetFolderId && Array.isArray(action.targetPath)) {
-            targetFolderId = await ensureRuntimeFolderPath(action.targetPath, runtimeFolderPaths);
+            targetFolderId = await ensureRuntimeFolderPath(action.targetPath, runtimeFolderPaths, virtualFolderRefs);
           }
           if (!targetFolderId) {
             continue;
@@ -3521,7 +3581,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     try {
       const endpoint = `${endpointBase.replace(/\/plan$/, '/usage')}?clientId=${encodeURIComponent(state.aiClientId)}`;
-      const response = await fetch(endpoint);
+      const response = await fetchAiWithTimeout(endpoint, {}, 10000);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -3552,6 +3612,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     undo.status = 'undoing';
     undo.lastError = null;
+    state.aiUndoWarnings = [];
     renderAiPlan();
     const failures = [];
 
@@ -3565,7 +3626,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     await loadBookmarks();
     await loadStoredScanResults();
-    state.aiPlan.warnings = state.aiPlan.warnings.filter((warning) => !warning.startsWith('撤销时有') && !warning.startsWith('未能'));
 
     if (failures.length === 0) {
       state.aiUndoAction = null;
@@ -3586,7 +3646,7 @@ document.addEventListener('DOMContentLoaded', () => {
       status: 'ready',
       lastError: failures.join('；')
     };
-    state.aiPlan.warnings = [
+    state.aiUndoWarnings = [
       t('ai.undoWarning', { n: failures.length }),
       ...failures
     ];
@@ -3607,7 +3667,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 240);
   }
 
-  async function ensureRuntimeFolderPath(targetPath, runtimeFolderPaths) {
+  async function ensureRuntimeFolderPath(targetPath, runtimeFolderPaths, virtualFolderRefs) {
     if (!Array.isArray(targetPath) || !targetPath.length) {
       return null;
     }
@@ -3647,6 +3707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
       runtimeFolderPaths.set(currentKey, created.id);
+      virtualFolderRefs.set(currentKey, { id: created.id, path: currentPath });
     }
 
     return runtimeFolderPaths.get(targetPath.join(' / ')) || null;
@@ -3770,6 +3831,7 @@ document.addEventListener('DOMContentLoaded', () => {
       id,
       instruction,
       scopeLabel,
+      scopeMode: state.aiScopeMode,
       createdAt: Date.now(),
       status: plan.status,
       summary: plan.summary,
