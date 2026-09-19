@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HARNESS · 智能书签管家</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link" data-i18n="app.skipToContent">跳转到主内容</a>
+  <div class="workspace-shell">
+    <header class="workspace-header">
+      <div class="workspace-brand">
+        <img class="workspace-brand-mark" src="../icons/icon_64x64@2x.png" alt="Smart Bookmark Keeper Logo">
+        <div class="workspace-brand-copy">
+          <div class="workspace-brand-name" data-i18n="app.brandName">智能书签管家</div>
+          <div class="workspace-brand-subtitle" data-i18n="app.brandSubtitle">检测、洞察、整理、AI</div>
+        </div>
+      </div>
+      <div class="workspace-header-actions">
+      <section class="top-tabs" aria-label="功能切换" data-i18n-aria-label="app.tabSwitch">
+        <button class="top-tab active" id="tabScan" type="button" data-tab="scan" data-i18n="tabs.scan">书签检测</button>
+        <button class="top-tab" id="tabPortrait" type="button" data-tab="portrait" data-i18n="tabs.portrait">书签洞察</button>
+        <button class="top-tab" id="tabManage" type="button" data-tab="manage" data-i18n="tabs.manage">书签管理</button>
+        <button class="top-tab top-tab-ai" id="tabAiManage" type="button" data-tab="ai-manage">
+          <img class="top-tab-icon" src="../icons/ai_icon.svg" alt="" aria-hidden="true">
+          <span data-i18n="tabs.ai">AI整理</span>
+        </button>
+        </section>
+        <div class="lang-switch" role="group" aria-label="Language switch">
+          <button class="lang-switch-btn is-active" id="langZhBtn" type="button" data-locale="zh-CN">中</button>
+          <button class="lang-switch-btn" id="langEnBtn" type="button" data-locale="en-US">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace-main" id="main-content">
+
+      <section class="page-panel" id="scanPage">
+        <div class="page-hero page-hero-scan">
+          <div>
+            <div class="page-kicker" data-i18n="scan.kicker">Bookmark Detection</div>
+            <h2 class="page-title" data-i18n="scan.title">书签检测</h2>
+            <p class="page-copy" data-i18n="scan.copy">快速扫描书签中的失效链接和空文件夹，集中处理需要清理的问题。</p>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat-value" id="totalCount">0</span>
+              <span class="hero-stat-label" data-i18n="scan.totalBookmarks">总书签</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-value danger" id="invalidCount">0</span>
+              <span class="hero-stat-label" data-i18n="scan.invalidBookmarks">失效书签</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="scan-stage">
+          <section class="scan-progress-card scan-progress-card-feature" id="scanSection">
+            <div class="scan-progress-shell">
+              <div class="scan-progress-copy">
+                <div class="scan-progress-kicker" data-i18n="scan.liveProgress">实时进度</div>
+                <h3 class="scan-card-title" data-i18n="scan.ctaTitle">一键开始检测你的书签库</h3>
+                <p class="scan-card-copy" id="scanStatusText" data-i18n="scan.waiting">等待开始</p>
+                <div class="scan-control-bar">
+                  <button id="startScanBtn" class="btn btn-primary btn-lg" type="button" data-i18n="scan.start">开始快速扫描</button>
+                  <button id="pauseBtn" class="btn btn-secondary hidden" type="button" data-i18n="scan.pause">暂停</button>
+                  <button id="stopBtn" class="btn btn-danger hidden" type="button" data-i18n="scan.stop">停止</button>
+                  <button id="openSettingsBtn" class="btn btn-secondary" type="button" data-i18n="scan.settings">扫描设置</button>
+                  <button id="refreshScanStatsBtn" class="btn btn-ghost" type="button" data-i18n="scan.refreshStats">刷新统计</button>
+                </div>
+                <p class="scan-stage-note" data-i18n="scan.keepLastResult">会持续保存最近一次扫描结果，方便你回来继续处理问题项。</p>
+              </div>
+              <div class="scan-progress-visual">
+                <div class="scan-progress-ring scan-progress-ring-xl" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="扫描完成百分比" data-i18n-aria-label="scan.progressAria">
+                  <svg width="120" height="120" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid meet">
+                    <circle class="progress-ring-bg" cx="60" cy="60" r="52"></circle>
+                    <circle class="progress-ring-fill" id="progressCircle" cx="60" cy="60" r="52" stroke-dasharray="326.73" stroke-dashoffset="326.73"></circle>
+                  </svg>
+                  <div class="progress-content">
+                    <span class="progress-percentage" id="progressText">0%</span>
+                    <span class="progress-label" data-i18n="scan.progressLabel">完成度</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="scan-stats-grid scan-stats-grid-cards">
+              <div class="scan-stat">
+                <div class="scan-stat-value" id="scanDuration">0s</div>
+                <div class="scan-stat-label" data-i18n="scan.duration">扫描时间</div>
+              </div>
+              <div class="scan-stat">
+                <div class="scan-stat-value" id="scannedCount">0</div>
+                <div class="scan-stat-label" data-i18n="scan.scanned">已扫描</div>
+              </div>
+              <div class="scan-stat">
+                <div class="scan-stat-value danger" id="scanInvalidCount">0</div>
+                <div class="scan-stat-label" data-i18n="scan.invalidBookmarks">失效书签</div>
+              </div>
+              <div class="scan-stat">
+                <div class="scan-stat-value warning" id="scanEmptyFolderCount">0</div>
+                <div class="scan-stat-label" data-i18n="scan.emptyFolders">空文件夹</div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="result-board">
+          <div class="result-board-header">
+            <div>
+              <h3 class="scan-card-title" data-i18n="scan.recentResults">最近扫描结果</h3>
+              <p class="scan-card-copy" id="resultsMeta" data-i18n="scan.notStarted">尚未开始扫描</p>
+            </div>
+            <div class="btn-group">
+              <button id="selectAllInvalidBtn" class="btn btn-ghost btn-sm" type="button" data-i18n="scan.selectAllIssues">全选问题项</button>
+              <button id="deleteSelectedScanBtn" class="btn btn-danger btn-sm" type="button" data-i18n="common.deleteSelected">删除选中</button>
+              <button id="clearScanResultsBtn" class="btn btn-secondary btn-sm" type="button" data-i18n="scan.clearResults">清空结果</button>
+            </div>
+          </div>
+
+          <div class="result-split">
+            <div class="result-column">
+              <div class="result-column-header">
+                <span data-i18n="scan.invalidBookmarks">失效书签</span>
+                <span class="result-pill" id="invalidCountBadge">0</span>
+              </div>
+              <div class="scan-result-list" id="invalidLinksList"></div>
+            </div>
+            <div class="result-column">
+              <div class="result-column-header">
+                <div class="result-column-title">
+                  <span data-i18n="scan.emptyFolders">空文件夹</span>
+                  <span class="result-pill" id="emptyFolderCountBadge">0</span>
+                </div>
+                <div class="result-column-actions">
+                  <button id="selectAllEmptyFoldersBtn" class="btn btn-ghost btn-sm" type="button" data-i18n="scan.selectAllEmptyFolders">全选空文件夹</button>
+                  <button id="deleteSelectedEmptyFoldersBtn" class="btn btn-danger btn-sm" type="button" data-i18n="common.deleteSelected">删除选中</button>
+                </div>
+              </div>
+              <div class="scan-result-list" id="emptyFoldersList"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page-panel hidden" id="portraitPage">
+        <div class="page-hero page-hero-portrait">
+          <div class="portrait-hero-copy">
+            <div class="page-kicker" data-i18n="portrait.kicker">Bookmark Insights</div>
+            <h2 class="page-title" data-i18n="portrait.title">书签洞察</h2>
+            <p class="page-copy" data-i18n="portrait.copy">先看您的书签现状、活跃趋势和待整理重点，再决定下一步该从哪里开始整理。</p>
+          </div>
+          <div class="portrait-hero-actions">
+            <div class="portrait-badge portrait-badge-hero">
+              <div class="portrait-badge-label" data-i18n="portrait.overallConclusion">整体结论</div>
+              <div class="portrait-badge-value" id="portraitLevel" data-i18n="portrait.analyzing">分析中</div>
+              <div class="portrait-badge-note" data-i18n="portrait.overallNote">结合收藏规模、来源分布和结构状态，快速总结这份书签库的整体特点。</div>
+            </div>
+          </div>
+        </div>
+
+        <section class="portrait-overview-grid portrait-overview-grid-analytics">
+          <article class="portrait-card portrait-card-feature portrait-card-summary">
+            <div class="portrait-card-label" data-i18n="portrait.thisInsight">本次洞察</div>
+            <div class="portrait-highlight" id="portraitHeadline" data-i18n="portrait.generating">正在生成书签洞察</div>
+            <div class="portrait-support" id="portraitSubtitle" data-i18n="portrait.generatingNote">先帮您概括书签库的当前状态，再指出更值得优先整理的方向。</div>
+          </article>
+          <article class="portrait-card portrait-card-stat">
+            <div class="portrait-card-label" data-i18n="portrait.collectionScale">收藏规模</div>
+            <div class="portrait-card-value" id="portraitTotalBookmarks">0</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.totalBookmarkCount">当前累计书签数</div>
+          </article>
+          <article class="portrait-card portrait-card-stat">
+            <div class="portrait-card-label" data-i18n="portrait.sourceBreadth">来源广度</div>
+            <div class="portrait-card-value" id="portraitUniqueDomains">0</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.uniqueSourceCount">不同网站来源数量</div>
+          </article>
+          <article class="portrait-card portrait-card-stat">
+            <div class="portrait-card-label" data-i18n="portrait.actionableItems">待整理项</div>
+            <div class="portrait-card-value" id="portraitActionableIssues">0</div>
+            <div class="portrait-metric-sub" id="portraitActionableMeta" data-i18n="portrait.actionableMeta">重复链接和空文件夹会显示在这里</div>
+          </article>
+        </section>
+
+        <section class="portrait-analytics-grid">
+          <article class="portrait-panel portrait-panel-chart">
+            <div class="portrait-panel-header">
+              <div>
+                <h3 class="scan-card-title" data-i18n="portrait.trendTitle">收藏趋势</h3>
+                <p class="scan-card-copy" data-i18n="portrait.trendCopy">按年、月、日查看收藏节奏，快速判断最近是否还在持续积累。</p>
+              </div>
+              <div class="portrait-trend-tabs" role="tablist" aria-label="趋势粒度切换" data-i18n-aria-label="portrait.trendAria">
+                <button class="portrait-trend-tab" id="trendYearBtn" type="button" role="tab" aria-selected="false" data-granularity="year" data-i18n="common.year">年</button>
+                <button class="portrait-trend-tab is-active" id="trendMonthBtn" type="button" role="tab" aria-selected="true" data-granularity="month" data-i18n="common.month">月</button>
+                <button class="portrait-trend-tab" id="trendDayBtn" type="button" role="tab" aria-selected="false" data-granularity="day" data-i18n="common.day">日</button>
+              </div>
+            </div>
+            <div class="portrait-trend-chart" id="portraitTrendChart"></div>
+            <div class="sr-only" id="portraitTrendSummary"></div>
+          </article>
+
+          <article class="portrait-panel portrait-panel-side">
+            <div class="portrait-panel-header">
+              <h3 class="scan-card-title" data-i18n="portrait.topDomains">高频域名</h3>
+              <p class="scan-card-copy" data-i18n="portrait.topDomainsCopy">最常被收藏的网站，能直接看出您的信息来源重心。</p>
+            </div>
+            <div class="portrait-domain-list" id="portraitDomainList"></div>
+          </article>
+        </section>
+
+        <section class="portrait-analytics-grid portrait-analytics-grid-secondary">
+          <article class="portrait-panel">
+            <div class="portrait-panel-header">
+              <div>
+                <h3 class="scan-card-title" data-i18n="portrait.focusTitle">优先整理这里</h3>
+                <p class="scan-card-copy" data-i18n="portrait.focusCopy">先看最容易产生混乱的结构位置，再决定是去检测还是直接开始整理。</p>
+              </div>
+              <div class="portrait-panel-actions">
+                <button class="btn btn-ghost" id="portraitOpenScanBtn" type="button" data-i18n="portrait.openScan">去书签检测</button>
+                <button class="btn btn-primary" id="portraitOpenManageBtn" type="button" data-i18n="portrait.openManage">去书签管理</button>
+              </div>
+            </div>
+            <div class="portrait-focus-list">
+              <div class="portrait-focus-item">
+                <div class="portrait-focus-label" data-i18n="portrait.largestFolder">最大文件夹</div>
+                <div class="portrait-focus-main" id="portraitLargestFolder">-</div>
+                <div class="portrait-focus-meta" id="portraitLargestFolderMeta">-</div>
+                <button class="portrait-focus-action" id="portraitFocusLargestBtn" type="button" data-i18n="portrait.viewInManage">在管理页查看</button>
+              </div>
+              <div class="portrait-focus-item">
+                <div class="portrait-focus-label" data-i18n="portrait.duplicateLinks">重复链接</div>
+                <div class="portrait-focus-main" id="portraitDuplicateUrls">0</div>
+                <div class="portrait-focus-meta" id="portraitDuplicateMeta">占比 0%</div>
+                <button class="portrait-focus-action" id="portraitFocusDuplicateBtn" type="button" data-i18n="portrait.viewDuplicates">查看重复链接</button>
+              </div>
+              <div class="portrait-focus-item">
+                <div class="portrait-focus-label" data-i18n="portrait.emptyFoldersFocus">空文件夹</div>
+                <div class="portrait-focus-main" id="portraitEmptyFolders">0</div>
+                <div class="portrait-focus-meta" data-i18n="portrait.emptyFoldersMeta">优先清理的结构噪音</div>
+                <button class="portrait-focus-action" id="portraitFocusEmptyBtn" type="button" data-i18n="portrait.handleInDetection">去检测页处理</button>
+              </div>
+              <div class="portrait-focus-item">
+                <div class="portrait-focus-label" data-i18n="portrait.maxDepth">最大层级</div>
+                <div class="portrait-focus-main" id="portraitMaxDepth">0</div>
+                <div class="portrait-focus-meta" data-i18n="portrait.depthMeta">目录嵌套深度</div>
+                <button class="portrait-focus-action" id="portraitFocusDepthBtn" type="button" data-i18n="portrait.expandToView">展开目录查看</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="portrait-panel">
+            <div class="portrait-panel-header">
+              <h3 class="scan-card-title" data-i18n="portrait.folderHotspots">文件夹热点</h3>
+              <p class="scan-card-copy" data-i18n="portrait.folderHotspotsCopy">最常承载书签内容的目录，能快速看出哪些地方最值得先整理。</p>
+            </div>
+            <div class="portrait-folder-list" id="portraitFolderList"></div>
+          </article>
+        </section>
+
+        <section class="portrait-analytics-grid portrait-analytics-grid-secondary">
+          <article class="portrait-panel">
+            <div class="portrait-panel-header">
+              <h3 class="scan-card-title" data-i18n="portrait.interestTags">兴趣标签</h3>
+              <p class="scan-card-copy" data-i18n="portrait.interestTagsCopy">根据域名和关键词自动推断，只作为轻量参考，不干扰主结论。</p>
+            </div>
+            <div class="portrait-tags" id="portraitTags"></div>
+            <div class="portrait-keywords portrait-keywords-inline" id="portraitKeywords"></div>
+          </article>
+
+          <article class="portrait-share-panel portrait-share-panel-compact">
+            <div class="portrait-panel-header">
+              <div>
+                <h3 class="scan-card-title" data-i18n="portrait.shareSummary">分享摘要</h3>
+                <p class="scan-card-copy" data-i18n="portrait.shareSummaryCopy">需要时再复制出去，不再占据洞察页主舞台。</p>
+              </div>
+              <div class="portrait-panel-actions">
+                <div class="portrait-share-chip" data-i18n="portrait.shareChip">Share Ready</div>
+                <button class="btn btn-ghost btn-sm" id="copyPortraitSummaryBtn" type="button" data-i18n="portrait.copySummary">复制摘要</button>
+              </div>
+            </div>
+            <div class="portrait-share-card" id="portraitShareCard">
+              <div class="portrait-share-topline">
+                <div>
+                  <div class="portrait-share-brand" data-i18n="app.brandName">智能书签管家</div>
+                  <div class="portrait-share-level" id="portraitShareLevel">分析中</div>
+                </div>
+                <div class="portrait-share-badge" data-i18n="portrait.kicker">Bookmark Insights</div>
+              </div>
+              <div class="portrait-share-headline" id="portraitShareHeadline">正在生成您的书签洞察</div>
+              <div class="portrait-share-grid">
+                <div class="portrait-share-metric">
+                  <span data-i18n="portrait.shareTotal">总书签</span>
+                  <strong id="portraitShareTotal">0</strong>
+                </div>
+                <div class="portrait-share-metric">
+                  <span data-i18n="portrait.shareDomains">唯一域名</span>
+                  <strong id="portraitShareDomains">0</strong>
+                </div>
+                <div class="portrait-share-metric">
+                  <span data-i18n="portrait.shareScore">组织分</span>
+                  <strong id="portraitShareScore">0</strong>
+                </div>
+                <div class="portrait-share-metric">
+                  <span data-i18n="portrait.shareDays">收藏天数</span>
+                  <strong id="portraitShareDays">0</strong>
+                </div>
+              </div>
+              <div class="portrait-share-tags" id="portraitShareTags"></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="portrait-metrics-grid portrait-metrics-grid-analytics portrait-metrics-grid-secondary-info">
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" data-i18n="portrait.totalFoldersLabel">文件夹数</div>
+            <div class="portrait-metric-main" id="portraitTotalFolders">0</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.totalFoldersMeta">当前目录结构数量</div>
+          </article>
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" data-i18n="portrait.collectionDaysLabel">收藏天数</div>
+            <div class="portrait-metric-main" id="portraitCollectionDays">0</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.collectionDaysMeta">持续积累时长</div>
+          </article>
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" id="portraitOrganizationScoreLabel" data-i18n="portrait.organizationScoreLabel">组织分</div>
+            <div class="portrait-metric-main" id="portraitOrganizationScore">0</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.organizationScoreMeta">整理成熟度参考</div>
+          </article>
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" data-i18n="portrait.httpsRatioLabel">HTTPS 占比</div>
+            <div class="portrait-metric-main" id="portraitHttpsRatio">0%</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.httpsRatioMeta">来源质量参考</div>
+          </article>
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" data-i18n="portrait.avgPerFolderLabel">平均每文件夹</div>
+            <div class="portrait-metric-main" id="portraitAvgPerFolder">0</div>
+            <div class="portrait-metric-sub" data-i18n="portrait.avgPerFolderMeta">书签数量</div>
+          </article>
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" data-i18n="portrait.oldestBookmarkLabel">最早收藏</div>
+            <div class="portrait-metric-main" id="portraitOldestBookmark">-</div>
+            <div class="portrait-metric-sub" id="portraitOldestDate">-</div>
+          </article>
+          <article class="portrait-metric-card">
+            <div class="portrait-card-label" data-i18n="portrait.newestBookmarkLabel">最近收藏</div>
+            <div class="portrait-metric-main" id="portraitNewestBookmark">-</div>
+            <div class="portrait-metric-sub" id="portraitNewestDate">-</div>
+          </article>
+        </section>
+      </section>
+
+      <section class="page-panel hidden" id="managePage">
+        <div class="page-hero page-hero-manage">
+          <div>
+            <div class="page-kicker" data-i18n="manage.kicker">Bookmark Organizing</div>
+            <h2 class="page-title" data-i18n="manage.title">书签管理</h2>
+            <p class="page-copy" data-i18n="manage.copy">搜索、筛选、重命名和拖拽调整书签结构，让整理过程更顺手。</p>
+          </div>
+          <div class="manage-header-actions">
+            <button id="refreshBtn" class="btn btn-ghost" type="button" data-i18n="manage.refresh">刷新书签</button>
+            <button class="btn btn-ghost" id="toggleExpandBtn" type="button">
+              <span id="toggleExpandIcon" aria-hidden="true"></span>
+              <span id="toggleExpandText" data-i18n="manage.collapseAll">全部折叠</span>
+            </button>
+          </div>
+        </div>
+
+        <section class="bookmarks-workbench" id="organizerSection">
+          <div class="selection-toolbar selection-toolbar-unified" id="selectionToolbar">
+            <div class="selection-group selection-group-left">
+              <div class="organizer-search organizer-search-inline">
+                <input id="bookmarkSearchInput" class="organizer-search-input" type="search" data-i18n-placeholder="manage.searchPlaceholder" placeholder="搜索标题、网址或路径">
+              </div>
+              <div class="selection-summary" id="selectionSummary" data-i18n="manage.selectionNone">未选中书签</div>
+              <div class="selection-actions">
+                <button class="btn btn-ghost btn-sm" id="selectAllVisibleBtn" type="button" data-i18n="manage.selectAllVisible">全选当前视图</button>
+                <button class="btn btn-ghost btn-sm" id="clearSelectionBtn" type="button" data-i18n="manage.clearSelection">清空选择</button>
+              </div>
+            </div>
+            <div class="selection-group selection-group-right">
+              <div class="selection-actions selection-actions-batch">
+                <div class="manage-filter">
+                  <button class="btn btn-ghost btn-sm" id="manageFilterToggleBtn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n="manage.filterAll">筛选：全部</button>
+                  <div class="manage-filter-panel hidden" id="manageFilterPanel">
+                  <button class="manage-filter-option is-active" type="button" data-filter="all" data-i18n="manage.filterOptionAll">全部书签</button>
+                    <button class="manage-filter-option" type="button" data-filter="unused_180d" data-tooltip-key="manage.filterTooltipUnused" data-i18n="manage.filterOptionUnused180">最近半年未打开</button>
+                    <button class="manage-filter-option" type="button" data-filter="unused_365d" data-tooltip-key="manage.filterTooltipUnused" data-i18n="manage.filterOptionUnused365">最近一年未打开</button>
+                    <button class="manage-filter-option" type="button" data-filter="added_before_180d" data-i18n="manage.filterOptionAdded180">半年前添加</button>
+                    <button class="manage-filter-option" type="button" data-filter="added_before_365d" data-i18n="manage.filterOptionAdded365">一年前添加</button>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm" id="moveSelectionBtn" type="button" disabled data-i18n="manage.moveToFolder">移动到…</button>
+                <button class="btn btn-danger btn-sm" id="deleteSelectionBtn" type="button" disabled data-i18n="manage.deleteSelection">删除选中</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="manage-tip-banner hidden" id="manageTipBanner" role="status" aria-live="polite">
+            <div class="manage-tip-copy" id="manageTipCopy">提示：支持直接拖拽排序；勾选多条后，拖动其中任意一条即可一起移动。</div>
+            <button class="manage-tip-close" id="dismissManageTipBtn" type="button" aria-label="关闭提示" data-i18n-aria-label="manage.dismissTip">&times;</button>
+          </div>
+
+          <div class="undo-banner hidden" id="undoBanner">
+            <div class="undo-copy" id="undoMessage">已完成操作</div>
+            <button class="btn btn-secondary btn-sm" id="undoActionBtn" type="button" data-i18n="common.undo">撤销</button>
+          </div>
+        </section>
+
+        <section class="bookmark-card">
+          <div class="bookmark-tree" id="bookmarkTree">
+              <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+              <p class="loading-text" data-i18n="common.loadingBookmarks">正在加载书签...</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="page-panel hidden" id="aiManagePage">
+        <div class="page-hero page-hero-ai">
+          <div>
+            <div class="page-kicker" data-i18n="ai.kicker">Bookmark AI</div>
+            <h2 class="page-title" data-i18n="ai.title">AI整理</h2>
+            <p class="page-copy" data-i18n="ai.copy">告诉 AI 您想怎么整理书签，先查看方案，再决定是否应用到书签栏。</p>
+          </div>
+          <div class="hero-stats hero-stats-ai">
+            <div class="hero-stat">
+              <span class="hero-stat-value" id="aiPlanActionCount">0</span>
+              <span class="hero-stat-label" data-i18n="ai.suggestedActions">建议动作</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-value" id="aiPlanValidCount">0</span>
+              <span class="hero-stat-label" data-i18n="ai.applicable">可应用</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="ai-layout">
+          <article class="ai-card ai-card-input">
+            <div class="ai-card-header">
+              <div>
+                <div class="ai-title-row">
+                  <h3 class="scan-card-title" data-i18n="ai.requestTitle">整理诉求</h3>
+                  <span class="ai-privacy-tip" tabindex="0" aria-label="隐私说明" data-i18n-aria-label="ai.privacy">
+                    ?
+                    <span class="ai-privacy-tooltip" data-i18n="ai.privacyCopy">书签信息只会在本次生成方案时发送给 AI 服务处理，服务器不会存储您的书签内容。</span>
+                  </span>
+                </div>
+                <p class="scan-card-copy" data-i18n="ai.requestCopy">告诉 AI 你想怎么整理书签，生成后你可以先看方案，再决定是否应用。</p>
+              </div>
+              <span class="ai-status-badge" id="aiPlanStatus" data-i18n="ai.pending">待生成</span>
+            </div>
+            <div class="ai-form-grid">
+              <label class="ai-field ai-field-full">
+                <span class="ai-field-label" data-i18n="ai.scope">整理范围</span>
+                <div class="ai-scope-picker" id="aiScopePicker">
+                  <button class="ai-scope-option is-active" type="button" data-ai-scope="all" data-i18n="ai.scopeAll">全部书签</button>
+                  <button class="ai-scope-option" type="button" data-ai-scope="filtered" data-i18n="ai.scopeFiltered">当前筛选结果</button>
+                  <button class="ai-scope-option" type="button" data-ai-scope="selected" data-i18n="ai.scopeSelected">仅选中的书签</button>
+                </div>
+                <p class="ai-scope-hint" id="aiScopeHint" data-i18n="ai.scopeHintAll">本次将基于全部书签生成整理方案。</p>
+                <p class="ai-usage-hint" id="aiUsageHint" data-i18n="ai.usageDefault">今日 AI 整理剩余 8 次。</p>
+              </label>
+              <label class="ai-field ai-field-full">
+                <span class="ai-field-label" data-i18n="ai.requestTitle">整理诉求</span>
+                <textarea id="aiInstructionInput" class="ai-textarea" rows="6" maxlength="1000" data-i18n-placeholder="ai.requestPlaceholder" placeholder="例如：帮我把前端学习资料整理到一个文件夹，保留有意义的分类，并把标题改得更统一。"></textarea>
+              </label>
+            </div>
+            <div class="ai-action-row">
+              <button class="btn btn-primary" id="generateAiPlanBtn" type="button" data-i18n="ai.generate">AI整理</button>
+              <button class="btn btn-secondary" id="applyAiPlanBtn" type="button" disabled data-i18n="ai.apply">应用方案</button>
+              <button class="btn btn-secondary hidden" id="undoAiPlanBtn" type="button" data-i18n="ai.undoLatest">撤销最近一次应用</button>
+            </div>
+          </article>
+          <article class="ai-card">
+            <div class="ai-card-header">
+              <div>
+                <h3 class="scan-card-title" data-i18n="ai.summaryTitle">方案摘要</h3>
+                <p class="scan-card-copy" data-i18n="ai.summaryCopy">先看这次整理会带来什么变化，再看 AI 的判断和需要你留意的地方。</p>
+              </div>
+            </div>
+            <div class="ai-result-summary" id="aiResultSummary"></div>
+            <div class="ai-summary-block">
+              <div class="ai-summary-label" data-i18n="ai.judgement">AI判断</div>
+              <div class="ai-summary" id="aiSummaryText" data-i18n="ai.summaryEmpty">还没有生成整理方案，先输入诉求再让 AI 帮你整理。</div>
+            </div>
+            <div class="ai-warning-list" id="aiWarningList"></div>
+          </article>
+        </section>
+
+        <section class="ai-preview-grid">
+          <article class="ai-card ai-card-side">
+            <div class="ai-card-header">
+              <div>
+                <h3 class="scan-card-title" data-i18n="ai.historyTitle">AI整理历史</h3>
+                <p class="scan-card-copy" data-i18n="ai.historyCopy">你之前生成过的整理方案会保存在这里，点一条就能回看当时的结果。</p>
+              </div>
+            </div>
+            <div class="ai-history-list" id="aiHistoryList"></div>
+          </article>
+
+          <article class="ai-card" id="aiPreviewCard" tabindex="-1">
+            <div class="ai-card-header">
+              <div>
+                <h3 class="scan-card-title" data-i18n="ai.previewTitle">变更预览</h3>
+                <p class="scan-card-copy" data-i18n="ai.previewCopy">AI 准备执行的每一步都会列在这里，你确认后才会真正改动书签。</p>
+              </div>
+            </div>
+            <div class="ai-action-summary" id="aiActionSummary"></div>
+            <div class="ai-action-list" id="aiActionList"></div>
+          </article>
+        </section>
+      </section>
+    </main>
+    <div class="workspace-feedback">
+      <button class="workspace-feedback-copy" id="copyFeedbackEmailBtn" type="button" data-i18n="app.feedback">去反馈</button>
+    </div>
+  </div>
+
+  <div id="settingsDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="dialogTitle" data-i18n="scan.settings">扫描设置</h3>
+        <button id="closeSettingsBtn" class="dialog-close" type="button" aria-label="关闭设置" data-i18n-aria-label="common.closeSettings">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-group">
+          <label class="form-label" for="timeoutValue" data-i18n="scan.timeoutLabel">请求超时时间</label>
+          <div class="scan-settings-range">
+            <input type="range" id="timeoutValue" class="form-range" min="5" max="30" value="15" step="1" aria-valuemin="5" aria-valuemax="30" aria-valuenow="15" aria-describedby="timeoutDescription">
+            <div class="form-value">
+              <span id="timeoutDisplay">15</span>
+              <span data-i18n="common.seconds">秒</span>
+            </div>
+          </div>
+          <p class="form-help" id="timeoutDescription" data-i18n="scan.timeoutHelp">网络较差建议调到 15-20 秒，链接很多时可适当缩短。</p>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button id="cancelSettingsBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
+        <button id="saveSettingsBtn" class="btn btn-primary" type="button" data-i18n="common.save">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="moveFolderDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="moveFolderDialogTitle">
+    <div class="dialog dialog-move-folder">
+      <div class="dialog-header">
+        <div>
+          <h3 class="dialog-title" id="moveFolderDialogTitle" data-i18n="manage.moveDialogTitle">移动书签到文件夹</h3>
+          <p class="dialog-subtitle" id="moveFolderDialogSummary"></p>
+        </div>
+        <button id="closeMoveFolderBtn" class="dialog-close" type="button" aria-label="关闭" data-i18n-aria-label="common.closeSettings">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <input id="moveFolderSearchInput" class="form-input move-folder-search" type="search" data-i18n-placeholder="manage.moveDialogSearchPlaceholder" placeholder="搜索文件夹路径" autocomplete="off">
+        <div class="move-folder-list" id="moveFolderList" role="listbox" data-i18n-aria-label="manage.moveDialogListAria" aria-label="文件夹列表"></div>
+      </div>
+      <div class="dialog-footer">
+        <button id="cancelMoveFolderBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
+
+  <script>
+    window.__ERRORS__ = [];
+    window.addEventListener('error', (e) => window.__ERRORS__.push((e.message || 'error') + ' @ ' + (e.filename || '') + ':' + e.lineno));
+    window.addEventListener('unhandledrejection', (e) => window.__ERRORS__.push('rejection: ' + ((e.reason && e.reason.stack) || e.reason)));
+  </script>
+  <script src="mock-chrome.js"></script>
+  <script src="../i18n.js"></script>
+  <script src="../profile.js"></script>
+</body>
+</html>
