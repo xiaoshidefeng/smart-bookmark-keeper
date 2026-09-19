@@ -350,6 +350,19 @@ document.addEventListener('DOMContentLoaded', () => {
         next.focus();
       }
     });
+    ui.bookmarkTree.addEventListener('keydown', handleTreeKeydown);
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || isConfirmDialogOpen()) {
+        return;
+      }
+      if (!ui.settingsDialog.classList.contains('hidden')) {
+        hideSettingsDialog();
+        return;
+      }
+      if (!ui.moveFolderDialog.classList.contains('hidden')) {
+        hideMoveFolderDialog();
+      }
+    });
     document.addEventListener('keydown', handleManageShortcuts);
     ui.manageFilterToggleBtn?.addEventListener('click', toggleManageFilterPanel);
     ui.manageFilterPanel?.querySelectorAll('[data-filter]').forEach((button) => {
@@ -473,7 +486,22 @@ document.addEventListener('DOMContentLoaded', () => {
     await new Promise((resolve) => chrome.storage.local.set({ locale }, resolve));
   }
 
+  // ---- 对话框关闭后焦点归还
+  let dialogReturnFocus = null;
+
+  function rememberDialogFocus() {
+    dialogReturnFocus = document.activeElement;
+  }
+
+  function restoreDialogFocus() {
+    if (dialogReturnFocus && typeof dialogReturnFocus.focus === 'function') {
+      dialogReturnFocus.focus();
+    }
+    dialogReturnFocus = null;
+  }
+
   function showSettingsDialog() {
+    rememberDialogFocus();
     ui.settingsDialog.classList.remove('hidden');
     requestAnimationFrame(() => ui.settingsDialog.classList.add('show'));
   }
@@ -481,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideSettingsDialog() {
     ui.settingsDialog.classList.remove('show');
     setTimeout(() => ui.settingsDialog.classList.add('hidden'), 180);
+    restoreDialogFocus();
   }
 
   // ---- 自定义确认对话框：替代原生 confirm()，promise 化并管理焦点
@@ -1825,6 +1854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateManageToolbar();
     renderManageTip();
     renderUndoBanner();
+    updateTreeRovingTabindex();
     focusInlineEditor();
   }
 
@@ -4062,6 +4092,112 @@ document.addEventListener('DOMContentLoaded', () => {
   let moveFolderOptions = [];
   let moveFolderActiveIndex = 0;
 
+  // ---- 树键盘导航：roving tabindex + 方向键展开/折叠/移动焦点
+  function getTreeFocusableItems() {
+    return Array.from(ui.bookmarkTree.querySelectorAll('.folder-header, .bookmark-item'));
+  }
+
+  function updateTreeRovingTabindex() {
+    getTreeFocusableItems().forEach((item, index) => {
+      item.tabIndex = index === 0 ? 0 : -1;
+    });
+  }
+
+  function focusTreeItemAt(items, index) {
+    if (index < 0 || index >= items.length) {
+      return;
+    }
+    items.forEach((item, i) => {
+      item.tabIndex = i === index ? 0 : -1;
+    });
+    items[index].focus();
+    items[index].scrollIntoView({ block: 'nearest' });
+  }
+
+  function focusParentFolderHeader(current, items) {
+    let parentId = null;
+    if (current.classList.contains('bookmark-item')) {
+      parentId = state.bookmarkMap.get(current.dataset.bookmarkId)?.parentId || null;
+    } else {
+      const folderId = current.closest('.folder')?.dataset.folderId;
+      parentId = folderId ? state.folderMap.get(folderId)?.parentId : null;
+    }
+    if (!parentId) {
+      return;
+    }
+    const parentHeader = ui.bookmarkTree.querySelector(`.folder[data-folder-id="${parentId}"] > .folder-header`);
+    if (parentHeader) {
+      focusTreeItemAt(items, items.indexOf(parentHeader));
+    }
+  }
+
+  function handleTreeKeydown(event) {
+    if (isConfirmDialogOpen() || state.editingNode) {
+      return;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+    const items = getTreeFocusableItems();
+    if (items.length === 0) {
+      return;
+    }
+    const current = event.target.closest('.folder-header, .bookmark-item');
+    if (!current) {
+      return;
+    }
+    const index = items.indexOf(current);
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        focusTreeItemAt(items, index + 1);
+        return;
+      case 'ArrowUp':
+        event.preventDefault();
+        focusTreeItemAt(items, index - 1);
+        return;
+      case 'ArrowRight': {
+        event.preventDefault();
+        const folderId = current.closest('.folder')?.dataset.folderId;
+        if (folderId && !state.expandedFolderIds.has(folderId)) {
+          current.click();
+          return;
+        }
+        focusTreeItemAt(items, index + 1);
+        return;
+      }
+      case 'ArrowLeft': {
+        event.preventDefault();
+        const folderId = current.closest('.folder')?.dataset.folderId;
+        // 书签行：← 直接回到所属文件夹；文件夹：已展开则折叠，否则回到上级
+        if (!current.classList.contains('bookmark-item') && folderId && state.expandedFolderIds.has(folderId)) {
+          current.click();
+          return;
+        }
+        focusParentFolderHeader(current, items);
+        return;
+      }
+      case 'Enter': {
+        if (current.classList.contains('bookmark-item')) {
+          const bookmark = state.bookmarkMap.get(current.dataset.bookmarkId);
+          if (bookmark?.url) {
+            event.preventDefault();
+            chrome.tabs.create({ url: bookmark.url });
+          }
+        }
+        return;
+      }
+      case ' ': {
+        if (current.classList.contains('bookmark-item')) {
+          event.preventDefault();
+          current.querySelector('.bookmark-checkbox')?.click();
+        }
+        return;
+      }
+    }
+  }
+
   function handleManageShortcuts(event) {
     if (isConfirmDialogOpen()) {
       return;
@@ -4113,6 +4249,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(t('manage.selectMoveFirst'), 'warning');
       return;
     }
+    rememberDialogFocus();
     ui.moveFolderSearchInput.value = '';
     moveFolderActiveIndex = 0;
     renderMoveFolderOptions();
@@ -4128,6 +4265,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function hideMoveFolderDialog() {
     ui.moveFolderDialog.classList.remove('show');
     setTimeout(() => ui.moveFolderDialog.classList.add('hidden'), 180);
+    restoreDialogFocus();
   }
 
   function renderMoveFolderOptions() {
@@ -4142,13 +4280,17 @@ document.addEventListener('DOMContentLoaded', () => {
       empty.className = 'move-folder-empty';
       empty.textContent = t('manage.moveDialogEmpty');
       ui.moveFolderList.appendChild(empty);
+      ui.moveFolderList.removeAttribute('aria-activedescendant');
       return;
     }
 
     moveFolderOptions.forEach((option, index) => {
       const row = document.createElement('button');
       row.type = 'button';
+      row.id = `move-folder-option-${index}`;
       row.className = `move-folder-option${index === moveFolderActiveIndex ? ' is-active' : ''}`;
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', String(index === moveFolderActiveIndex));
       row.dataset.folderId = option.id;
       row.disabled = isMoveTargetCurrent(option.id);
       row.innerHTML = `
@@ -4158,14 +4300,22 @@ document.addEventListener('DOMContentLoaded', () => {
       row.addEventListener('click', () => confirmMoveSelectionTo(option.id));
       ui.moveFolderList.appendChild(row);
     });
+    updateMoveFolderActiveRow();
   }
 
   function updateMoveFolderActiveRow() {
     const rows = ui.moveFolderList.querySelectorAll('.move-folder-option');
     rows.forEach((row, index) => {
       row.classList.toggle('is-active', index === moveFolderActiveIndex);
+      row.setAttribute('aria-selected', String(index === moveFolderActiveIndex));
     });
-    rows[moveFolderActiveIndex]?.scrollIntoView({ block: 'nearest' });
+    const activeRow = rows[moveFolderActiveIndex];
+    if (activeRow) {
+      ui.moveFolderList.setAttribute('aria-activedescendant', activeRow.id);
+      activeRow.scrollIntoView({ block: 'nearest' });
+    } else {
+      ui.moveFolderList.removeAttribute('aria-activedescendant');
+    }
   }
 
   function handleMoveFolderSearchKeydown(event) {
