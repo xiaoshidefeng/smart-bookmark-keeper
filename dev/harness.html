@@ -569,6 +569,11 @@
     window.__ERRORS__ = [];
     window.addEventListener('error', (e) => window.__ERRORS__.push((e.message || 'error') + ' @ ' + (e.filename || '') + ':' + e.lineno));
     window.addEventListener('unhandledrejection', (e) => window.__ERRORS__.push('rejection: ' + ((e.reason && e.reason.stack) || e.reason)));
+    // 每次加载强制刷新样式表，避免开发时命中缓存
+    document.addEventListener('DOMContentLoaded', () => {
+      const link = document.querySelector('link[rel="stylesheet"]');
+      if (link) link.href = link.href.split('?')[0] + '?v=' + Date.now();
+    });
   </script>
   <script src="mock-chrome.js"></script>
   <script src="../i18n.js"></script>
