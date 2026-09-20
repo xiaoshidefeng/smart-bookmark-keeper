@@ -3645,6 +3645,24 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // 批量改动书签前明确确认：按动作类型汇总数量
+    const counts = executableActions.reduce((acc, action) => {
+      acc[action.type] = (acc[action.type] || 0) + 1;
+      return acc;
+    }, {});
+    const parts = [
+      counts.create_folder ? t('ai.confirmCountsCreate', { n: counts.create_folder }) : '',
+      counts.rename ? t('ai.confirmCountsRename', { n: counts.rename }) : '',
+      counts.move ? t('ai.confirmCountsMove', { n: counts.move }) : ''
+    ].filter(Boolean).join(t('ai.confirmCountsJoin'));
+    const confirmed = await showConfirmDialog({
+      title: t('ai.applyConfirmTitle'),
+      message: t('ai.applyConfirmBody', { n: executableActions.length, detail: parts })
+    });
+    if (!confirmed) {
+      return;
+    }
+
     state.aiPlan.status = 'applying';
     renderAiPlan();
 
