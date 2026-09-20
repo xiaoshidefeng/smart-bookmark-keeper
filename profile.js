@@ -1962,7 +1962,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="item-avatar item-avatar-folder">${ICONS.folder}</span>
           ${isEditing
             ? `<span class="rename-editor rename-editor-inline"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${t('manage.editFolderName')}"></span>`
-            : `<span class="folder-title">${escapeHtml(folder?.title || t('manage.untitledFolder'))}</span>`}
+            : `<span class="folder-title">${highlightMatch(folder?.title || t('manage.untitledFolder'), state.searchTerm)}</span>`}
           <span class="folder-meta">${escapeHtml((folder?.path || []).join(' / '))}</span>
         </span>
         <span class="folder-side">
@@ -2139,10 +2139,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <img class="bookmark-favicon bookmark-favicon-lg" alt="" loading="lazy">
           ${isEditing
             ? `<label class="rename-editor"><input class="rename-input" type="text" value="${escapeHtml(editingValue)}" aria-label="${t('manage.editBookmarkName')}"></label>`
-            : `<div class="bookmark-title">${escapeHtml(bookmark.title)}</div>`}
+            : `<div class="bookmark-title">${highlightMatch(bookmark.title, state.searchTerm)}</div>`}
           ${state.invalidLinksMap[bookmark.id] ? `<span class="bookmark-chip bookmark-chip-danger">${t('manage.invalidChip')}</span>` : ''}
         </div>
-        <div class="bookmark-url">${escapeHtml(bookmark.url)}</div>
+        <div class="bookmark-url">${highlightMatch(bookmark.url, state.searchTerm)}</div>
         <div class="bookmark-meta-line">
           <span class="bookmark-domain">${escapeHtml(bookmark.domain)}</span>
           <span class="bookmark-path">${escapeHtml(bookmark.path.join(' / ') || t('manage.root'))}</span>
@@ -5245,5 +5245,26 @@ document.addEventListener('DOMContentLoaded', () => {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#39;');
+  }
+
+  // 把命中搜索词的片段包上 <mark>；未命中时原样转义返回
+  function highlightMatch(text, term) {
+    const raw = String(text ?? '');
+    const needle = String(term || '').toLowerCase();
+    if (!needle) {
+      return escapeHtml(raw);
+    }
+    const lower = raw.toLowerCase();
+    let out = '';
+    let cursor = 0;
+    let idx = lower.indexOf(needle);
+    while (idx !== -1) {
+      out += escapeHtml(raw.slice(cursor, idx));
+      out += `<mark>${escapeHtml(raw.slice(idx, idx + needle.length))}</mark>`;
+      cursor = idx + needle.length;
+      idx = lower.indexOf(needle, cursor);
+    }
+    out += escapeHtml(raw.slice(cursor));
+    return out;
   }
 });

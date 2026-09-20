@@ -4698,3 +4698,15 @@ a:hover {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
+
+/* ========================================
+   Search Match Highlighting
+   ======================================== */
+.bookmark-title mark,
+.bookmark-url mark,
+.folder-title mark {
+  background: rgba(232, 165, 26, 0.24);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
