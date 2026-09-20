@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectAllBtn = document.getElementById('selectAllBtn');
   const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
   const clearResultsBtn = document.getElementById('clearResultsBtn');
+  const undoDeleteBtn = document.getElementById('undoDeleteBtn');
   const confirmDialog = document.getElementById('confirmDialog');
   const confirmDialogTitle = document.getElementById('confirmDialogTitle');
   const confirmDialogMessage = document.getElementById('confirmDialogMessage');
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setVersionInfo();
     loadStats();
     syncScanStateFromBackground();
+    loadUndoSnapshot();
   }
 
   function setVersionInfo() {
@@ -62,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAllBtn.addEventListener('click', toggleSelectAll);
     deleteSelectedBtn.addEventListener('click', deleteSelectedBookmarks);
     clearResultsBtn.addEventListener('click', clearStoredResults);
+    undoDeleteBtn.addEventListener('click', undoLastPopupDelete);
     confirmDialogOkBtn.addEventListener('click', () => settleConfirmDialog(true));
     confirmDialogCancelBtn.addEventListener('click', () => settleConfirmDialog(false));
     confirmDialog.addEventListener('click', (event) => {
@@ -453,7 +456,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // 删除前抓一次树，记录 parentId/index 供撤销恢复
+    const placementById = await resolveBookmarkPlacements(targets.map((b) => b.id));
+
     let deleted = 0;
+    const deletedSnapshot = [];
     for (const bookmark of targets) {
       try {
         await new Promise((resolve, reject) => {
@@ -466,6 +473,13 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
         deleted += 1;
+        const placement = placementById.get(bookmark.id) || {};
+        deletedSnapshot.push({
+          parentId: placement.parentId,
+          index: placement.index,
+          title: bookmark.title,
+          url: bookmark.url
+        });
       } catch (error) {
         showStatus(`${t('popup.statusDeleteFailed')}: ${bookmark.title}`, 'error');
       }
@@ -476,6 +490,98 @@ document.addEventListener('DOMContentLoaded', () => {
     await persistScanResults();
     await loadStats();
     showStatus(t('popup.statusDeleted', { n: deleted }), deleted > 0 ? 'success' : 'warning');
+
+    if (deletedSnapshot.length > 0) {
+      lastDeletedBookmarks = deletedSnapshot;
+      await saveUndoSnapshot(deletedSnapshot);
+      undoDeleteBtn.classList.remove('hidden');
+    }
+  }
+
+  // ---- popup 删除撤销：快照写 chrome.storage.session，重开 popup 仍可恢复
+  let lastDeletedBookmarks = null;
+  const UNDO_SNAPSHOT_TTL_MS = 10 * 60 * 1000;
+
+  async function resolveBookmarkPlacements(ids) {
+    const wanted = new Set(ids);
+    const map = new Map();
+    const tree = await new Promise((resolve) => chrome.bookmarks.getTree(resolve));
+    const walk = (nodes, parent) => {
+      nodes.forEach((node, index) => {
+        if (wanted.has(node.id)) {
+          map.set(node.id, { parentId: parent ? parent.id : undefined, index });
+        }
+        if (node.children) {
+          walk(node.children, node);
+        }
+      });
+    };
+    walk(tree, null);
+    return map;
+  }
+
+  async function saveUndoSnapshot(snapshot) {
+    await new Promise((resolve) => {
+      const area = chrome.storage.session || chrome.storage.local;
+      area.set({ popupUndoSnapshot: { bookmarks: snapshot, at: Date.now() } }, resolve);
+    });
+  }
+
+  async function loadUndoSnapshot() {
+    const area = chrome.storage.session || chrome.storage.local;
+    const stored = await new Promise((resolve) => area.get(['popupUndoSnapshot'], resolve));
+    const snapshot = stored.popupUndoSnapshot;
+    if (!snapshot || !Array.isArray(snapshot.bookmarks) || snapshot.bookmarks.length === 0) {
+      return;
+    }
+    if (Date.now() - snapshot.at > UNDO_SNAPSHOT_TTL_MS) {
+      await new Promise((resolve) => area.remove(['popupUndoSnapshot'], resolve));
+      return;
+    }
+    lastDeletedBookmarks = snapshot.bookmarks;
+    undoDeleteBtn.classList.remove('hidden');
+  }
+
+  async function clearUndoSnapshot() {
+    lastDeletedBookmarks = null;
+    undoDeleteBtn.classList.add('hidden');
+    const area = chrome.storage.session || chrome.storage.local;
+    await new Promise((resolve) => area.remove(['popupUndoSnapshot'], resolve));
+  }
+
+  async function undoLastPopupDelete() {
+    if (!lastDeletedBookmarks || lastDeletedBookmarks.length === 0) {
+      await clearUndoSnapshot();
+      return;
+    }
+    undoDeleteBtn.disabled = true;
+    let restored = 0;
+    for (const bookmark of lastDeletedBookmarks) {
+      try {
+        await new Promise((resolve, reject) => {
+          chrome.bookmarks.create({
+            parentId: bookmark.parentId,
+            index: bookmark.index,
+            title: bookmark.title,
+            url: bookmark.url
+          }, () => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+            } else {
+              resolve();
+            }
+          });
+        });
+        restored += 1;
+      } catch (error) {
+        // 单条失败继续恢复其余
+      }
+    }
+    await clearUndoSnapshot();
+    await persistScanResults();
+    await loadStats({ syncStoredResults: true });
+    undoDeleteBtn.disabled = false;
+    showStatus(t('popup.statusUndoDeleted', { n: restored }), restored > 0 ? 'success' : 'error');
   }
 
   async function clearStoredResults() {

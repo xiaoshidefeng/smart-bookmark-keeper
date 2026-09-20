@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aiExpandedActionGroups: new Set(),
     aiUndoAction: null,
     aiUndoWarnings: [],
-    undoAction: null
+    undoStack: [],
   };
 
   init();
@@ -4562,11 +4562,11 @@ document.addEventListener('DOMContentLoaded', () => {
       insertIndex += 1;
     }
 
-    state.undoAction = {
+    recordUndoAction({
       type: 'move',
       payload: previousState,
       message
-    };
+    });
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
@@ -4612,11 +4612,11 @@ document.addEventListener('DOMContentLoaded', () => {
       insertIndex += 1;
     }
 
-    state.undoAction = {
+    recordUndoAction({
       type: 'move',
       payload: previousState,
       message
-    };
+    });
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
@@ -4669,11 +4669,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    state.undoAction = {
+    recordUndoAction({
       type: 'move',
       payload: previousState,
       message: t('manage.movedFolder', { t: folder.title })
-    };
+    });
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
@@ -4759,11 +4759,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (recordUndo && snapshot.length > 0) {
-      state.undoAction = {
+      recordUndoAction({
         type: 'delete',
         payload: snapshot,
         message: t('manage.bookmarksDeleted', { n: snapshot.length })
-      };
+      });
     }
   }
 
@@ -4949,13 +4949,22 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(t('manage.emptyFoldersDeleted', { n: ids.length }), 'error');
   }
 
+  // ---- 撤销栈：保留最近 10 步可撤销操作，banner 每次撤销一步
+  const UNDO_STACK_LIMIT = 10;
+
+  function recordUndoAction(action) {
+    state.undoStack.push(action);
+    if (state.undoStack.length > UNDO_STACK_LIMIT) {
+      state.undoStack.shift();
+    }
+  }
+
   async function undoLastAction() {
-    if (!state.undoAction) {
+    if (state.undoStack.length === 0) {
       return;
     }
 
-    const action = state.undoAction;
-    state.undoAction = null;
+    const action = state.undoStack.pop();
 
     if (action.type === 'delete') {
       for (const bookmark of action.payload) {
@@ -4997,19 +5006,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderUndoBanner() {
-    if (!state.undoAction) {
+    const action = state.undoStack[state.undoStack.length - 1];
+    if (!action) {
       ui.undoBanner.classList.add('hidden');
       ui.undoBanner.classList.remove('is-move', 'is-delete', 'is-create');
       return;
     }
 
-    ui.undoMessage.textContent = state.undoAction.message;
+    const remaining = state.undoStack.length - 1;
+    ui.undoMessage.textContent = remaining > 0
+      ? `${action.message}${t('manage.undoMore', { n: remaining })}`
+      : action.message;
     ui.undoBanner.classList.remove('is-move', 'is-delete', 'is-create');
-    if (state.undoAction.type === 'move') {
+    if (action.type === 'move') {
       ui.undoBanner.classList.add('is-move');
-    } else if (state.undoAction.type === 'delete') {
+    } else if (action.type === 'delete') {
       ui.undoBanner.classList.add('is-delete');
-    } else if (state.undoAction.type === 'create') {
+    } else if (action.type === 'create') {
       ui.undoBanner.classList.add('is-create');
     }
     ui.undoBanner.classList.remove('hidden');
