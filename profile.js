@@ -486,6 +486,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.activeTab === 'portrait') {
       renderPortrait();
     }
+    // 管理树/提示横幅/撤销横幅/扫描结果里的按钮与空态文案也是动态渲染，切换语言后需重建
+    renderManageTree();
+    renderScanResults();
     await new Promise((resolve) => chrome.storage.local.set({ locale }, resolve));
   }
 
