@@ -4710,3 +4710,52 @@ a:hover {
   border-radius: 3px;
   padding: 0 1px;
 }
+
+/* ========================================
+   Motion Polish — panel cross-fade, folder expand, drop indicator
+   (all effects disabled by the global prefers-reduced-motion kill switch)
+   ======================================== */
+
+/* Page switch: brief fade-rise instead of binary show/hide */
+.page-panel {
+  animation: panelEnter var(--duration-normal) var(--ease-out-quart);
+}
+
+@keyframes panelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Folder expand: retrigger entrance on children each time they show */
+.folder-children.show {
+  animation: folderChildrenIn var(--duration-normal) var(--ease-out-quart);
+}
+
+@keyframes folderChildrenIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Drop indicator: scale-in instead of instant block */
+.bookmark-item.drop-before .drop-indicator,
+.bookmark-item.drop-after .drop-indicator,
+.folder-header.drop-target {
+  transition: background-color var(--duration-fast) var(--ease-smooth),
+    border-color var(--duration-fast) var(--ease-smooth);
+}
+
+.folder-header.drop-target {
+  transition-delay: 0ms;
+}
