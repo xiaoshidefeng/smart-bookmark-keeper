@@ -198,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isExpandedByDefault: false,
     expansionInitialized: false,
     expandedFolderIds: new Set(),
+    pendingExpandedFolderIds: null,
     scanTime: null,
     portraitStats: null,
     portraitTrendGranularity: 'month',
@@ -249,7 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function init() {
     setupEventListeners();
     await loadSettings();
+    await restoreUiState();
     applyTranslations();
+    applyRestoredManageFilter();
     await loadBookmarks();
     await Promise.all([
       loadStoredScanResults(),
@@ -559,9 +562,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ---- UI 状态持久化：activeTab / 展开文件夹 / 管理筛选（写入即存，启动恢复）
+  const UI_STATE_KEY = 'manageUiState';
+
+  function persistUiState() {
+    const record = {
+      activeTab: state.activeTab,
+      manageFilter: state.manageFilter,
+      expandedFolderIds: Array.from(state.expandedFolderIds)
+    };
+    chrome.storage.local.set({ [UI_STATE_KEY]: record }, () => void chrome.runtime.lastError);
+  }
+
+  async function restoreUiState() {
+    const stored = await new Promise((resolve) => chrome.storage.local.get([UI_STATE_KEY], resolve));
+    const record = stored[UI_STATE_KEY];
+    if (!record || typeof record !== 'object') {
+      return;
+    }
+    if (['scan', 'portrait', 'manage', 'ai-manage'].includes(record.activeTab)) {
+      state.activeTab = record.activeTab;
+    }
+    if (typeof record.manageFilter === 'string') {
+      state.manageFilter = record.manageFilter;
+    }
+    if (Array.isArray(record.expandedFolderIds)) {
+      state.pendingExpandedFolderIds = record.expandedFolderIds.filter((id) => typeof id === 'string');
+    }
+  }
+
   function switchTab(tab) {
     state.activeTab = tab;
     renderTabs();
+    persistUiState();
   }
 
   function renderTabs() {
@@ -629,12 +662,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!state.expansionInitialized) {
       state.expansionInitialized = true;
-      validFolderIds.forEach((id) => {
-        const folder = state.folderMap.get(id);
-        if (folder && folder.path.length === 1) {
-          state.expandedFolderIds.add(id);
-        }
-      });
+      // 有持久化记录时恢复；否则默认展开一层
+      if (Array.isArray(state.pendingExpandedFolderIds) && state.pendingExpandedFolderIds.length > 0) {
+        state.pendingExpandedFolderIds.forEach((id) => {
+          if (validFolderIds.has(id)) {
+            state.expandedFolderIds.add(id);
+          }
+        });
+      } else {
+        validFolderIds.forEach((id) => {
+          const folder = state.folderMap.get(id);
+          if (folder && folder.path.length === 1) {
+            state.expandedFolderIds.add(id);
+          }
+        });
+      }
+      state.pendingExpandedFolderIds = null;
     }
   }
 
@@ -1995,12 +2038,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         header.classList.add('expanded');
         content.classList.add('show');
+        persistUiState();
       };
 
       const collapseFolderNow = () => {
         state.expandedFolderIds.delete(node.id);
         header.classList.remove('expanded');
         content.classList.remove('show');
+        persistUiState();
       };
 
       const toggleFolderExpand = () => {
@@ -2337,7 +2382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.manageFilterToggleBtn.setAttribute('aria-expanded', String(!isHidden));
   }
 
-  function setManageFilter(filter) {
+  function setManageFilter(filter, options = {}) {
     state.manageFilter = filter || 'all';
     ui.manageFilterToggleBtn.textContent = getManageFilterLabel();
     ui.manageFilterPanel?.classList.add('hidden');
@@ -2346,6 +2391,15 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('is-active', button.dataset.filter === state.manageFilter);
     });
     renderManageTree();
+    if (!options.skipPersist) {
+      persistUiState();
+    }
+  }
+
+  function applyRestoredManageFilter() {
+    if (state.manageFilter && state.manageFilter !== 'all') {
+      setManageFilter(state.manageFilter, { skipPersist: true });
+    }
   }
 
   function openLargestFolderFromPortrait() {

@@ -16,6 +16,7 @@ const v = {};
 for (const f of ['tokens.css', 'styles.css', 'i18n.js', 'profile.js']) {
   v[f] = String(Math.floor((await stat(join(rootDir, f))).mtimeMs));
 }
+v['mock-chrome.js'] = String(Math.floor((await stat(join(devDir, 'mock-chrome.js'))).mtimeMs));
 
 let html = await readFile(join(rootDir, 'profile.html'), 'utf8');
 
@@ -40,7 +41,7 @@ html = html.replace(
       });
     });
   </script>
-  <script src="mock-chrome.js"></script>
+  <script src="mock-chrome.js?v=${v['mock-chrome.js']}"></script>
   <script src="../i18n.js?v=${v['i18n.js']}"></script>`
 );
 html = html.replace('  <script src="profile.js"></script>', `  <script src="../profile.js?v=${v['profile.js']}"></script>`);

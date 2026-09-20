@@ -145,8 +145,9 @@
     return i;
   }
 
-  // ---- chrome.storage（内存实现 + onChanged）
-  const localStore = {
+  // ---- chrome.storage（localStorage 持久化 + onChanged，reload 后状态可复现）
+  const LS_KEY = '__mock_chrome_local__';
+  let localStore = {
     locale: 'zh-CN',
     scanTimeout: 15,
     scanResults: {
@@ -159,6 +160,17 @@
       scanTime: new Date(now - 2 * DAY).toISOString()
     }
   };
+  try {
+    const saved = window.localStorage.getItem(LS_KEY);
+    if (saved) {
+      localStore = { ...localStore, ...JSON.parse(saved) };
+    }
+  } catch (e) { /* ignore */ }
+  function flushLocalStore() {
+    try {
+      window.localStorage.setItem(LS_KEY, JSON.stringify(localStore));
+    } catch (e) { /* ignore */ }
+  }
   const sessionStore = {};
 
   function makeStorageArea(store) {
@@ -183,11 +195,13 @@
           changes[k] = { oldValue: store[k], newValue: items[k] };
           store[k] = items[k];
         });
+        if (store === localStore) flushLocalStore();
         if (cb) setTimeout(cb, 0);
         setTimeout(() => listeners.forEach((l) => l(changes, 'mock')), 0);
       },
       remove(keys, cb) {
         (Array.isArray(keys) ? keys : [keys]).forEach((k) => delete store[k]);
+        if (store === localStore) flushLocalStore();
         if (cb) setTimeout(cb, 0);
       },
       clear(cb) { Object.keys(store).forEach((k) => delete store[k]); if (cb) setTimeout(cb, 0); },
@@ -310,5 +324,5 @@
   };
 
   // 供 harness 控制台调试用
-  window.__MOCK__ = { ROOT, nodeMap, localStore };
+  window.__MOCK__ = { ROOT, nodeMap, localStore, resetLocalStore: () => { window.localStorage.removeItem(LS_KEY); } };
 })();
