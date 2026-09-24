@@ -12,6 +12,10 @@
   --color-primary-300: #a9c4ff;
   --color-primary-400: #78a3fb;
   --color-primary-500: #4387f4;
+  /* 主色 RGB 分量：供 rgba(var(--color-primary-rgb), alpha) 构造任意透明度 */
+  --color-primary-rgb: 67, 135, 244;
+  /* 弹窗遮罩：蓝色系暗色，替代无彩黑 */
+  --overlay-bg: rgba(21, 33, 56, 0.6);
   --color-primary-600: #2f6fda;
   --color-primary-700: #2458ad;
   --color-primary-800: #21498c;

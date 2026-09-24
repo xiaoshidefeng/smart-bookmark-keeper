@@ -12,7 +12,7 @@
   <div class="workspace-shell">
     <header class="workspace-header">
       <div class="workspace-brand">
-        <img class="workspace-brand-mark" src="icons/icon_64x64@2x.png" alt="Smart Bookmark Keeper Logo">
+        <img class="workspace-brand-mark" src="icons/icon_64x64@2x.png" alt="" data-i18n-alt="app.brandName">
         <div class="workspace-brand-copy">
           <div class="workspace-brand-name" data-i18n="app.brandName">智能书签管家</div>
           <div class="workspace-brand-subtitle" data-i18n="app.brandSubtitle">检测、洞察、整理、AI</div>
@@ -49,10 +49,10 @@
               <span class="hero-stat-value" id="totalCount">0</span>
               <span class="hero-stat-label" data-i18n="scan.totalBookmarks">总书签</span>
             </div>
-            <div class="hero-stat">
+            <button class="hero-stat hero-stat-action" id="invalidCountStat" type="button" data-i18n-title-attr="scan.jumpToResults">
               <span class="hero-stat-value danger" id="invalidCount">0</span>
               <span class="hero-stat-label" data-i18n="scan.invalidBookmarks">失效书签</span>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -385,6 +385,7 @@
                   <button class="btn btn-ghost btn-sm" id="manageFilterToggleBtn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n="manage.filterAll">筛选：全部</button>
                   <div class="manage-filter-panel hidden" id="manageFilterPanel">
                   <button class="manage-filter-option is-active" type="button" data-filter="all" data-i18n="manage.filterOptionAll">全部书签</button>
+                    <button class="manage-filter-option" type="button" data-filter="duplicates" data-i18n="manage.filterDuplicates">重复链接</button>
                     <button class="manage-filter-option" type="button" data-filter="unused_180d" data-tooltip-key="manage.filterTooltipUnused" data-i18n="manage.filterOptionUnused180">最近半年未打开</button>
                     <button class="manage-filter-option" type="button" data-filter="unused_365d" data-tooltip-key="manage.filterTooltipUnused" data-i18n="manage.filterOptionUnused365">最近一年未打开</button>
                     <button class="manage-filter-option" type="button" data-filter="added_before_180d" data-i18n="manage.filterOptionAdded180">半年前添加</button>
@@ -402,8 +403,8 @@
             <button class="manage-tip-close" id="dismissManageTipBtn" type="button" aria-label="关闭提示" data-i18n-aria-label="manage.dismissTip">&times;</button>
           </div>
 
-          <div class="undo-banner hidden" id="undoBanner">
-            <div class="undo-copy" id="undoMessage">已完成操作</div>
+          <div class="undo-banner hidden" id="undoBanner" role="status" aria-live="polite">
+            <div class="undo-copy" id="undoMessage" data-i18n="manage.undoBannerIdle">暂无可撤销操作</div>
             <button class="btn btn-secondary btn-sm" id="undoActionBtn" type="button" data-i18n="common.undo">撤销</button>
           </div>
         </section>
@@ -583,6 +584,7 @@
   <div class="toast-container" id="toastContainer" role="status" aria-live="polite"></div>
 
   <script src="i18n.js"></script>
+  <script src="utils.js"></script>
   <script src="profile.js"></script>
 </body>
 </html>

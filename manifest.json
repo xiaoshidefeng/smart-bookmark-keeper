@@ -34,20 +34,6 @@
     "48": "icons/icon_48.png",
     "128": "icons/icon_128.png"
   },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "profile.html",
-        "profile.js",
-        "styles.css",
-        "echarts.min.js",
-        "popup.html",
-        "popup.css",
-        "popup.js"
-      ],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "options_page": "profile.html",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

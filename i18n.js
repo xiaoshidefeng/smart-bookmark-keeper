@@ -49,6 +49,9 @@
       'scan.untitled': '未命名',
       'scan.root': '根目录',
       'scan.open': '打开',
+      'scan.jumpToResults': '点击全选失效书签并跳转到结果',
+      'scan.startScanNow': '立即扫描',
+      'manage.clearSearch': '清除搜索与筛选',
       'scan.goManage': '去整理',
       'scan.delete': '删除',
       'scan.deselectAllEmptyFolders': '取消全选',
@@ -206,6 +209,7 @@
       'manage.noEmptyFolders': '当前没有空文件夹',
       'manage.movedToFolder': '已移动到目标文件夹',
       'manage.moveFailed': '移动失败',
+      'manage.createFailed': '创建文件夹失败',
       'manage.renamed': '重命名完成',
       'manage.renameFailed': '重命名失败',
       'manage.reorderSaved': '排序已保存',
@@ -213,12 +217,18 @@
       'manage.undoHintDelete': '已删除书签，可撤销',
       'manage.undoHintCreate': '已创建文件夹，可撤销',
       'manage.undoHintRename': '已重命名，可撤销',
+      'manage.undoHintFolderDelete': '已删除空文件夹，可撤销',
+      'manage.undoBannerIdle': '暂无可撤销操作',
+      'manage.undoRetryFailed': '撤销未全部成功，可重试',
       'manage.invalidChip': '失效',
       'manage.open': '打开',
       'manage.save': '保存',
       'manage.cancel': '取消',
       'manage.delete': '删除',
       'manage.root': '根目录',
+      'manage.revealedBookmark': '已在管理页定位该书签',
+      'manage.revealedFolder': '已在管理页定位该文件夹',
+      'manage.revealNotFound': '该书签已不存在，视图已刷新',
       'ai.kicker': 'Bookmark AI',
       'ai.title': 'AI整理',
       'ai.copy': '告诉 AI 您想怎么整理书签，先查看方案，再决定是否应用到书签栏。',
@@ -255,6 +265,7 @@
       'common.month': '月',
       'common.day': '日',
       'common.seconds': '秒',
+      'common.batchPartialFailed': '{n} 项操作失败（可能已被其他页面处理）',
       'common.closeSettings': '关闭设置',
       'dialog.confirmTitle': '确认操作',
       'dialog.deleteTitle': '确认删除',
@@ -525,6 +536,9 @@
       'scan.untitled': 'Untitled',
       'scan.root': 'Root',
       'scan.open': 'Open',
+      'scan.jumpToResults': 'Select all invalid bookmarks and jump to results',
+      'scan.startScanNow': 'Scan now',
+      'manage.clearSearch': 'Clear search & filters',
       'scan.goManage': 'Manage',
       'scan.delete': 'Delete',
       'scan.deselectAllEmptyFolders': 'Clear All',
@@ -682,6 +696,7 @@
       'manage.noEmptyFolders': 'No empty folders right now',
       'manage.movedToFolder': 'Moved to the target folder',
       'manage.moveFailed': 'Move failed',
+      'manage.createFailed': 'Failed to create folder',
       'manage.renamed': 'Renamed',
       'manage.renameFailed': 'Rename failed',
       'manage.reorderSaved': 'Order saved',
@@ -689,12 +704,18 @@
       'manage.undoHintDelete': 'Bookmarks deleted. Undo available',
       'manage.undoHintCreate': 'Folder created. Undo available',
       'manage.undoHintRename': 'Renamed. Undo available',
+      'manage.undoHintFolderDelete': 'Empty folders deleted. Undo available',
+      'manage.undoBannerIdle': 'Nothing to undo yet',
+      'manage.undoRetryFailed': 'Undo did not fully succeed. You can retry',
       'manage.invalidChip': 'Invalid',
       'manage.open': 'Open',
       'manage.save': 'Save',
       'manage.cancel': 'Cancel',
       'manage.delete': 'Delete',
       'manage.root': 'Root',
+      'manage.revealedBookmark': 'Bookmark located in Manage',
+      'manage.revealedFolder': 'Folder located in Manage',
+      'manage.revealNotFound': 'That bookmark no longer exists. View refreshed',
       'ai.kicker': 'Bookmark AI',
       'ai.title': 'AI Organize',
       'ai.copy': 'Tell AI how you want to organize your bookmarks, review the plan, and decide whether to apply it.',
@@ -731,6 +752,7 @@
       'common.month': 'Month',
       'common.day': 'Day',
       'common.seconds': 'sec',
+      'common.batchPartialFailed': '{n} operation(s) failed (possibly already handled elsewhere)',
       'common.closeSettings': 'Close settings',
       'dialog.confirmTitle': 'Confirm action',
       'dialog.deleteTitle': 'Confirm deletion',
@@ -999,8 +1021,15 @@
     root.querySelectorAll('[data-i18n-title]').forEach((node) => {
       node.textContent = t(node.dataset.i18nTitle);
     });
+    // title 属性版（tooltip）：data-i18n-title 是给 <title> 元素用的，会写 textContent
+    root.querySelectorAll('[data-i18n-title-attr]').forEach((node) => {
+      node.setAttribute('title', t(node.dataset.i18nTitleAttr));
+    });
     root.querySelectorAll('[data-i18n-aria-label]').forEach((node) => {
       node.setAttribute('aria-label', t(node.dataset.i18nAriaLabel));
+    });
+    root.querySelectorAll('[data-i18n-alt]').forEach((node) => {
+      node.setAttribute('alt', t(node.dataset.i18nAlt));
     });
     root.querySelectorAll('[data-tooltip-key]').forEach((node) => {
       node.dataset.tooltip = t(node.dataset.tooltipKey);

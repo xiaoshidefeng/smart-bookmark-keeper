@@ -191,7 +191,7 @@ body {
 }
 
 .progress-ring-bg {
-  stroke: rgba(67, 135, 244, 0.14);
+  stroke: rgba(var(--color-primary-rgb), 0.14);
 }
 
 .progress-ring-fill {
@@ -360,7 +360,7 @@ body {
   flex: 0 0 auto;
   padding: 8px 10px;
   border-radius: 999px;
-  background: rgba(67, 135, 244, 0.1);
+  background: rgba(var(--color-primary-rgb), 0.1);
   color: var(--color-primary-600);
   font-size: 12px;
   font-weight: 700;
@@ -439,8 +439,8 @@ body {
 }
 
 .result-item.selected {
-  border-color: rgba(67, 135, 244, 0.35);
-  background: rgba(67, 135, 244, 0.07);
+  border-color: rgba(var(--color-primary-rgb), 0.35);
+  background: rgba(var(--color-primary-rgb), 0.07);
 }
 
 .result-checkbox {
@@ -467,7 +467,7 @@ body {
   min-height: 20px;
   padding: 0 8px;
   border-radius: 999px;
-  background: rgba(67, 135, 244, 0.1);
+  background: rgba(var(--color-primary-rgb), 0.1);
   color: var(--color-primary-600);
   font-size: 10px;
   font-weight: 700;
@@ -566,4 +566,24 @@ body {
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 16px 16px;
+}
+
+/* Scrollbar: 与管理页样式对齐 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

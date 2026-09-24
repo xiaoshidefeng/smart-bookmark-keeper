@@ -36,6 +36,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const t = (key, params) => window.BK_I18N.t(key, params);
 
+  // 共享工具：来自 utils.js（与 profile 页同源，避免两份实现漂移）
+  const {
+    escapeHtml, getDomain, isScannable, attachFavicon, sendScanMessage, animateNumber
+  } = window.BK_UTILS;
+  const confirmController = window.BK_UTILS.createConfirmController({
+    dialog: confirmDialog,
+    titleEl: confirmDialogTitle,
+    messageEl: confirmDialogMessage,
+    okBtn: confirmDialogOkBtn,
+    t
+  });
+  const showConfirmDialog = confirmController.show;
+  const settleConfirmDialog = confirmController.settle;
+
   init();
 
   async function init() {
@@ -85,37 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ---- 自定义确认对话框：替代原生 confirm()
-  let confirmDialogState = null;
-
-  function showConfirmDialog({ title, message, confirmText } = {}) {
-    if (confirmDialogState) {
-      return Promise.resolve(false);
-    }
-    return new Promise((resolve) => {
-      confirmDialogState = { resolve, lastFocused: document.activeElement };
-      confirmDialogTitle.textContent = title || t('dialog.confirmTitle');
-      confirmDialogMessage.textContent = message || '';
-      confirmDialogOkBtn.textContent = confirmText || t('dialog.confirm');
-      confirmDialog.classList.remove('hidden');
-      confirmDialog.classList.add('show');
-      setTimeout(() => confirmDialogOkBtn.focus(), 120);
-    });
-  }
-
-  function settleConfirmDialog(result) {
-    if (!confirmDialogState) {
-      return;
-    }
-    const { resolve, lastFocused } = confirmDialogState;
-    confirmDialogState = null;
-    confirmDialog.classList.remove('show');
-    setTimeout(() => confirmDialog.classList.add('hidden'), 160);
-    if (lastFocused && typeof lastFocused.focus === 'function') {
-      lastFocused.focus();
-    }
-    resolve(result);
-  }
+  // ---- 确认对话框的显隐逻辑在 utils.js 的 createConfirmController 中
 
   async function handleRefresh() {
     refreshBtn.disabled = true;
@@ -173,25 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       showStatus(t('popup.statusLoadFailed'), 'error');
     }
-  }
-
-  function animateNumber(element, start, end, duration) {
-    const startTime = performance.now();
-    const diff = end - start;
-
-    function update(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 4);
-
-      element.textContent = Math.round(start + diff * easeProgress);
-
-      if (progress < 1) {
-        requestAnimationFrame(update);
-      }
-    }
-
-    requestAnimationFrame(update);
   }
 
   async function handleScanButtonClick() {
@@ -308,14 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
     updateProgress(0);
     scanChecked.textContent = '0';
     scanInvalid.textContent = '0';
-    scanTime.textContent = '0s';
+    scanTime.textContent = t('scan.durationSec', { s: 0 });
     scanText.textContent = t('popup.checking');
   }
 
   function updateElapsedDisplay(scan) {
     if (!scan) return;
     const elapsedMs = (scan.elapsedMs || 0) + (scan.status === 'running' ? Date.now() - (scan.segmentStart || Date.now()) : 0);
-    scanTime.textContent = `${Math.max(0, Math.floor(elapsedMs / 1000))}s`;
+    scanTime.textContent = t('scan.durationSec', { s: Math.max(0, Math.floor(elapsedMs / 1000)) });
   }
 
   function setScanButtonLabel(text) {
@@ -323,22 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (label) {
       label.textContent = text;
     }
-  }
-
-  function sendScanMessage(payload) {
-    return new Promise((resolve) => {
-      try {
-        chrome.runtime.sendMessage(payload, (response) => {
-          if (chrome.runtime.lastError) {
-            resolve(null);
-            return;
-          }
-          resolve(response);
-        });
-      } catch (error) {
-        resolve(null);
-      }
-    });
   }
 
   function updateProgress(percent) {
@@ -394,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="result-item-url">${escapeHtml(bookmark.url)}</div>
         </div>
-        <button class="result-item-open" type="button">打开</button>
+        <button class="result-item-open" type="button">${escapeHtml(t('scan.open'))}</button>
       `;
 
       const checkbox = item.querySelector('.result-checkbox');
@@ -451,7 +400,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!(await showConfirmDialog({
       title: t('dialog.deleteTitle'),
       message: t('popup.confirmDeleteSelected', { n: targets.length }),
-      confirmText: t('dialog.delete')
+      confirmText: t('dialog.delete'),
+      danger: true
     }))) {
       return;
     }
@@ -593,7 +543,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openManager() {
-    chrome.tabs.create({ url: chrome.runtime.getURL('profile.html') });
+    // 带上下文深链：有扫描结果或扫描进行中时直达检测页
+    const hasScanContext = invalidBookmarks.length > 0 || currentScanState?.status === 'running' || currentScanState?.status === 'paused';
+    const hash = hasScanContext ? '#tab=scan' : '';
+    chrome.tabs.create({ url: chrome.runtime.getURL(`profile.html${hash}`) });
   }
 
   function showStatus(message, type) {
@@ -643,58 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function isScannable(url) {
-    return Boolean(
-      url &&
-      !url.startsWith('chrome://') &&
-      !url.startsWith('javascript:') &&
-      !url.startsWith('data:')
-    );
-  }
-
   function sanitizeStoredBookmarks(bookmarks) {
     return bookmarks.filter((bookmark) => bookmark && bookmark.id && bookmark.url);
-  }
-
-  function getDomain(url) {
-    try {
-      return new URL(url).hostname.replace(/^www\./, '');
-    } catch (error) {
-      return url;
-    }
-  }
-
-  function getFaviconUrl(url, size = 32) {
-    return chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(url)}&size=${size}`);
-  }
-
-  function createFaviconFallback(title = '') {
-    const letter = String(title || '?').trim().charAt(0).toUpperCase() || '?';
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <rect width="64" height="64" rx="14" fill="#e7f0ff"/>
-        <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" fill="#2f6fda">${letter}</text>
-      </svg>
-    `;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-  }
-
-  function attachFavicon(image, url, title = '') {
-    if (!image || !url) {
-      return;
-    }
-    image.src = getFaviconUrl(url, 16);
-    image.addEventListener('error', () => {
-      image.src = createFaviconFallback(title);
-    }, { once: true });
-  }
-
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
   }
 });

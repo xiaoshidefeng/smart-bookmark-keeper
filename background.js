@@ -130,22 +130,35 @@ async function writeScanState(rt) {
   } catch (error) {}
 }
 
+// 检查点写盘节奏：checkedIds 快照随扫描线性增长，若每次 tick 全量写盘，
+// 总写入量是 O(n²) 字节且每 0.5s 广播给所有打开的页面。改为「进度增量达标
+// 或距上次写盘超时」才写，暂停/恢复/结束仍走 writeScanState 即时落盘。
+const CHECKPOINT_MIN_DELTA = 200;
+const CHECKPOINT_MAX_GAP_MS = 3000;
+
 function scheduleCheckpoint() {
   if (checkpointTimerId) return;
   checkpointTimerId = setTimeout(() => {
     checkpointTimerId = null;
     if (!scanRuntime) return;
+    const rt = scanRuntime;
     // 没有新进度就不重复写 storage
     if (
-      scanRuntime.lastWrittenChecked === scanRuntime.checked &&
-      scanRuntime.lastWrittenInvalid === scanRuntime.invalidBookmarks.length
+      rt.lastWrittenChecked === rt.checked &&
+      rt.lastWrittenInvalid === rt.invalidBookmarks.length
     ) {
       return;
     }
-    scanRuntime.lastWrittenChecked = scanRuntime.checked;
-    scanRuntime.lastWrittenInvalid = scanRuntime.invalidBookmarks.length;
-    writeScanState(scanRuntime);
-    updateRunningBadge(scanRuntime);
+    const dueToProgress = rt.checked - (rt.lastWrittenChecked || 0) >= CHECKPOINT_MIN_DELTA;
+    const dueToTime = Date.now() - (rt.lastCheckpointAt || 0) >= CHECKPOINT_MAX_GAP_MS;
+    if (!dueToProgress && !dueToTime) {
+      return;
+    }
+    rt.lastWrittenChecked = rt.checked;
+    rt.lastWrittenInvalid = rt.invalidBookmarks.length;
+    rt.lastCheckpointAt = Date.now();
+    writeScanState(rt);
+    updateRunningBadge(rt);
   }, SCAN_ENGINE.CHECKPOINT_INTERVAL_MS);
 }
 
@@ -463,11 +476,6 @@ chrome.runtime.onInstalled.addListener(function() {
   console.log('Bookmarker extension installed');
 });
 
-// 监听扩展图标点击事件，并打开书签管理页面
-chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: chrome.runtime.getURL("profile.html") });
-});
-
 // 监听来自popup或网页的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // 停止扫描（cancelScan 为兼容旧版页面的消息名）
@@ -507,62 +515,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     sendResponse({ ok: true });
     return;
-  }
-
-  // 获取所有书签树（包括空文件夹检查）
-  if (request.action === 'getAllBookmarks') {
-    chrome.bookmarks.getTree((tree) => {
-      sendResponse({ bookmarks: tree });
-    });
-    return true;
-  }
-  
-  // 获取书签
-  if (request.action === 'getBookmarks') {
-    chrome.bookmarks.getTree((tree) => {
-      sendResponse({ bookmarks: tree });
-    });
-    return true;
-  }
-  
-  // 删除书签
-  if (request.action === 'removeBookmark') {
-    chrome.bookmarks.remove(request.id, () => {
-      console.log('Bookmark removed:', request.id);
-    });
-    return;
-  }
-  
-  // 删除文件夹
-  if (request.action === 'removeFolder') {
-    chrome.bookmarks.removeTree(request.id, () => {
-      console.log('Folder removed:', request.id);
-    });
-    return;
-  }
-  
-  // 非侵入式验证URL（使用webRequest API）
-  if (request.action === 'validateUrlSimple') {
-    const controller = new AbortController();
-    activeRequests.add(controller);
-    
-    // 使用传入的timeout，默认为15秒
-    const timeout = request.timeout || 15000;
-    
-    validateUrlWithWebRequest(request.url, controller.signal, timeout)
-      .then(result => {
-        activeRequests.delete(controller);
-        sendResponse(result);
-      })
-      .catch(error => {
-        activeRequests.delete(controller);
-        sendResponse({
-          valid: false,
-          reason: error.message,
-          isInvalid: false
-        });
-      });
-    return true;
   }
 });
 
@@ -834,32 +786,5 @@ async function probeUrlWithWebRequest(url, signal, timeout = 15000) {
       reason: `Invalid URL format: ${error.message}`,
       isInvalid: true
     };
-  }
-}
-
-// 轻量验证（仅检查URL结构）
-async function validateUrlSimple(url) {
-  try {
-    const urlObj = new URL(url);
-    
-    // 检查协议
-    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-      return { valid: true, reason: 'Non-HTTP protocol', isInvalid: false };
-    }
-    
-    // 简单域名检查
-    const hostname = urlObj.hostname.toLowerCase();
-    if (!hostname || hostname.length < 2) {
-      return { valid: false, reason: 'Invalid hostname', isInvalid: true };
-    }
-    
-    // 检查常见的无效域名模式
-    if (hostname.includes("..") || hostname.startsWith(" ") || hostname.endsWith(" ")) {
-      return { valid: false, reason: 'Suspicious domain format', isInvalid: true };
-    }
-    
-    return { valid: true, reason: 'Format OK', isInvalid: false };
-  } catch (error) {
-    return { valid: false, reason: 'Invalid URL', isInvalid: true };
   }
 }

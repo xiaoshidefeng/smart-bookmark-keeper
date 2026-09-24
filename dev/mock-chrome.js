@@ -210,6 +210,22 @@
   }
 
   // ---- chrome.bookmarks
+  // 事件桩：真实扩展里由 Chrome 派发；harness 可通过 chrome.__emitBookmarkEvent 模拟外部变更
+  const bookmarkEventListeners = { onCreated: [], onRemoved: [], onChanged: [], onMoved: [] };
+  function makeBookmarkEvent(name) {
+    return {
+      addListener: (l) => bookmarkEventListeners[name].push(l),
+      removeListener: (l) => {
+        const list = bookmarkEventListeners[name];
+        const i = list.indexOf(l);
+        if (i >= 0) list.splice(i, 1);
+      }
+    };
+  }
+  function emitBookmarkEvent(name, ...args) {
+    setTimeout(() => bookmarkEventListeners[name].forEach((l) => l(...args)), 0);
+  }
+
   const bookmarksApi = {
     getTree(cb) { setTimeout(() => cb([clone(ROOT)]), 0); },
     getChildren(id, cb) {
@@ -223,6 +239,7 @@
       parent.children.push(n);
       n.parentId = parent.id;
       nodeMap.set(n.id, n);
+      emitBookmarkEvent('onCreated', n.id, clone(n));
       setTimeout(() => cb(clone(n)), 0);
     },
     update(id, changes, cb) {
@@ -230,6 +247,7 @@
       if (!n) { mockRuntime._lastError = { message: 'not found' }; setTimeout(() => cb(undefined), 0); return; }
       if (changes.title) n.title = changes.title;
       if (changes.url) n.url = changes.url;
+      emitBookmarkEvent('onChanged', id, { title: n.title, url: n.url });
       setTimeout(() => cb(clone(n)), 0);
     },
     move(id, dest, cb) {
@@ -241,6 +259,7 @@
       const idx = typeof dest.index === 'number' ? dest.index : parent.children.length;
       parent.children.splice(idx, 0, n);
       n.parentId = parent.id;
+      emitBookmarkEvent('onMoved', id, { parentId: n.parentId, index: -1 }, { parentId: parent.id, index: idx });
       setTimeout(() => cb(clone(n)), 0);
     },
     remove(id, cb) {
@@ -250,18 +269,26 @@
         setTimeout(() => cb(undefined), 0);
         return;
       }
+      const info = { parentId: n.parentId, index: -1 };
       removeFromParent(n);
       nodeMap.delete(id);
+      emitBookmarkEvent('onRemoved', id, info);
       setTimeout(() => cb(), 0);
     },
     removeTree(id, cb) {
       const n = findAndIndex(id);
       if (!n) { mockRuntime._lastError = { message: 'not found' }; setTimeout(() => cb(undefined), 0); return; }
+      const info = { parentId: n.parentId, index: -1 };
       (function drop(x) { nodeMap.delete(x.id); (x.children || []).forEach(drop); })(n);
       removeFromParent(n);
+      emitBookmarkEvent('onRemoved', id, info);
       setTimeout(() => cb(), 0);
     },
-    search() { setTimeout(() => cb([]), 0); }
+    search() { setTimeout(() => cb([]), 0); },
+    onCreated: makeBookmarkEvent('onCreated'),
+    onRemoved: makeBookmarkEvent('onRemoved'),
+    onChanged: makeBookmarkEvent('onChanged'),
+    onMoved: makeBookmarkEvent('onMoved')
   };
 
   // ---- chrome.runtime
@@ -323,6 +350,12 @@
     }
   };
 
-  // 供 harness 控制台调试用
-  window.__MOCK__ = { ROOT, nodeMap, localStore, resetLocalStore: () => { window.localStorage.removeItem(LS_KEY); } };
+  // 供 harness 控制台调试用；__emitBookmarkEvent 可模拟外部（云同步等）书签变更
+  window.__MOCK__ = {
+    ROOT,
+    nodeMap,
+    localStore,
+    resetLocalStore: () => { window.localStorage.removeItem(LS_KEY); },
+    emitBookmarkEvent
+  };
 })();

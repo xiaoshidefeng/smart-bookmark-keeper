@@ -13,7 +13,7 @@ const rootDir = join(devDir, '..');
 
 // 按源文件 mtime 生成版本参数，保证源码变更后浏览器缓存立即失效
 const v = {};
-for (const f of ['tokens.css', 'styles.css', 'i18n.js', 'profile.js']) {
+for (const f of ['tokens.css', 'styles.css', 'i18n.js', 'utils.js', 'profile.js']) {
   v[f] = String(Math.floor((await stat(join(rootDir, f))).mtimeMs));
 }
 v['mock-chrome.js'] = String(Math.floor((await stat(join(devDir, 'mock-chrome.js'))).mtimeMs));
@@ -45,6 +45,7 @@ html = html.replace(
   <script src="../i18n.js?v=${v['i18n.js']}"></script>`
 );
 html = html.replace('  <script src="profile.js"></script>', `  <script src="../profile.js?v=${v['profile.js']}"></script>`);
+html = html.replace('  <script src="utils.js"></script>', `  <script src="../utils.js?v=${v['utils.js']}"></script>`);
 
 if (!html.includes('mock-chrome.js')) {
   console.error('注入失败：未找到 <script src="i18n.js"> 标记');

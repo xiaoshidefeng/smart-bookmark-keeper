@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     timeoutDisplay: document.getElementById('timeoutDisplay'),
     totalCount: document.getElementById('totalCount'),
     invalidCount: document.getElementById('invalidCount'),
+    invalidCountStat: document.getElementById('invalidCountStat'),
     startScanBtn: document.getElementById('startScanBtn'),
     pauseBtn: document.getElementById('pauseBtn'),
     stopBtn: document.getElementById('stopBtn'),
@@ -173,6 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return window.BK_I18N.t(key, params);
   }
 
+  // 共享工具：来自 utils.js（popup 页同源，避免两份实现漂移）
+  const {
+    escapeHtml, getDomain, isScannable, sendScanMessage
+  } = window.BK_UTILS;
+
   const state = {
     activeTab: 'scan',
     tree: [],
@@ -201,6 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingExpandedFolderIds: null,
     scanTime: null,
     portraitStats: null,
+    // 画像统计的脏标记：书签变更后走轻量路径，等真正打开洞察页才重算
+    portraitDirty: false,
+    // 展开全部分帧渲染进行中：renderManageNode 只出骨架，子节点排队按帧填充
+    deferFolderChildren: false,
     portraitTrendGranularity: 'month',
     portraitChart: null,
     manageDragTipDismissed: false,
@@ -292,10 +302,21 @@ document.addEventListener('DOMContentLoaded', () => {
         applyBackgroundScanState(changes.scanState.newValue);
       }
     });
+    setupExternalBookmarkSync();
     // 页面可见且已有最终结果时，清除扩展图标角标
     document.addEventListener('visibilitychange', dismissBadgeIfFinalSeen);
     ui.refreshScanStatsBtn.addEventListener('click', refreshScanStats);
     ui.selectAllInvalidBtn.addEventListener('click', toggleSelectAllInvalid);
+    // hero 失效数一键直达：全选失效项并滚动到结果列表
+    ui.invalidCountStat?.addEventListener('click', () => {
+      const invalidIds = Object.keys(state.invalidLinksMap);
+      if (invalidIds.length === 0) {
+        return;
+      }
+      invalidIds.forEach((id) => state.selectedScanIds.add(id));
+      renderScanResults();
+      ui.invalidLinksList?.closest('.result-column')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     ui.selectAllEmptyFoldersBtn.addEventListener('click', toggleSelectAllEmptyFolders);
     ui.deleteSelectedScanBtn.addEventListener('click', deleteSelectedScanResults);
     ui.deleteSelectedEmptyFoldersBtn.addEventListener('click', deleteSelectedEmptyFolders);
@@ -323,9 +344,13 @@ document.addEventListener('DOMContentLoaded', () => {
         hideMoveFolderDialog();
       }
     });
+    let moveSearchDebounceTimer = null;
     ui.moveFolderSearchInput.addEventListener('input', () => {
-      moveFolderActiveIndex = 0;
-      renderMoveFolderOptions();
+      clearTimeout(moveSearchDebounceTimer);
+      moveSearchDebounceTimer = setTimeout(() => {
+        moveFolderActiveIndex = 0;
+        renderMoveFolderOptions();
+      }, 200);
     });
     ui.moveFolderSearchInput.addEventListener('keydown', handleMoveFolderSearchKeydown);
     ui.confirmDialogOkBtn.addEventListener('click', () => settleConfirmDialog(true));
@@ -354,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     ui.bookmarkTree.addEventListener('keydown', handleTreeKeydown);
+    setupTreeDelegatedEvents();
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || isConfirmDialogOpen()) {
         return;
@@ -392,10 +418,19 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.trendYearBtn.addEventListener('click', () => setPortraitTrendGranularity('year'));
     ui.trendMonthBtn.addEventListener('click', () => setPortraitTrendGranularity('month'));
     ui.trendDayBtn.addEventListener('click', () => setPortraitTrendGranularity('day'));
+    let resizeScheduled = false;
     window.addEventListener('resize', () => {
-      if (state.portraitChart) {
-        state.portraitChart.resize();
+      if (!state.portraitChart || resizeScheduled) {
+        return;
       }
+      // 拖动窗口时 resize 事件连发，按帧合并 chart 重排
+      resizeScheduled = true;
+      requestAnimationFrame(() => {
+        resizeScheduled = false;
+        if (state.portraitChart) {
+          state.portraitChart.resize();
+        }
+      });
     });
     document.addEventListener('click', (event) => {
       if (!ui.manageFilterPanel || !ui.manageFilterToggleBtn) {
@@ -451,10 +486,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return normalized || CONFIG.AI_ENDPOINT_DEFAULT;
   }
 
-  function t(key, params) {
-    return window.BK_I18N.t(key, params);
-  }
-
   function applyTranslations() {
     document.documentElement.lang = state.locale;
     window.BK_I18N.setLocale(state.locale);
@@ -479,11 +510,17 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAiPlan();
     // 洞察页的日期、等级文案、标签和关键词都是缓存的动态渲染结果，翻译切换后需要重算并重渲染
     if (state.portraitStats) {
-      assignPortraitConclusion(state.portraitStats);
-      state.portraitStats.tags = derivePortraitTags(state.portraitStats.topDomains);
-      state.portraitStats.topKeywords = extractPortraitKeywords(Array.from(state.bookmarkMap.values()));
+      if (state.portraitDirty) {
+        // 数据已变但尚未重算：丢弃缓存，等打开洞察页时按新语言全量计算
+        state.portraitStats = null;
+      } else {
+        assignPortraitConclusion(state.portraitStats);
+        state.portraitStats.tags = derivePortraitTags(state.portraitStats.topDomains);
+        state.portraitStats.topKeywords = extractPortraitKeywords(Array.from(state.bookmarkMap.values()));
+      }
     }
     if (state.activeTab === 'portrait') {
+      ensurePortraitStats();
       renderPortrait();
     }
     // 管理树/提示横幅/撤销横幅/扫描结果里的按钮与空态文案也是动态渲染，切换语言后需重建
@@ -506,54 +543,57 @@ document.addEventListener('DOMContentLoaded', () => {
     dialogReturnFocus = null;
   }
 
+  // ---- 外部书签变更同步（云同步 / 其他标签页 / Chrome 自带管理器）：
+  // 防抖后走轻量 reindex，避免 UI 长期停留在过期数据上
+  let externalSyncDebounceTimer = null;
+
+  function scheduleExternalBookmarkRefresh() {
+    clearTimeout(externalSyncDebounceTimer);
+    externalSyncDebounceTimer = setTimeout(() => {
+      if (state.editingNode) {
+        // 行内重命名进行中不打断，稍后再试
+        scheduleExternalBookmarkRefresh();
+        return;
+      }
+      void (async () => {
+        await loadBookmarks();
+        await loadStoredScanResults();
+      })();
+    }, 1000);
+  }
+
+  function setupExternalBookmarkSync() {
+    ['onCreated', 'onRemoved', 'onChanged', 'onMoved'].forEach((eventName) => {
+      chrome.bookmarks[eventName]?.addListener?.(scheduleExternalBookmarkRefresh);
+    });
+  }
+
   function showSettingsDialog() {
     rememberDialogFocus();
     ui.settingsDialog.classList.remove('hidden');
     requestAnimationFrame(() => ui.settingsDialog.classList.add('show'));
   }
 
+  // 隐藏延迟对齐 tokens.css 的 --duration-normal（overlay 透明过渡时长）
+  const DIALOG_HIDE_DELAY_MS = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--duration-normal')) || 250;
+
   function hideSettingsDialog() {
     ui.settingsDialog.classList.remove('show');
-    setTimeout(() => ui.settingsDialog.classList.add('hidden'), 180);
+    setTimeout(() => ui.settingsDialog.classList.add('hidden'), DIALOG_HIDE_DELAY_MS);
     restoreDialogFocus();
   }
 
-  // ---- 自定义确认对话框：替代原生 confirm()，promise 化并管理焦点
-  let confirmDialogState = null;
-
-  function showConfirmDialog({ title, message, confirmText, danger = false } = {}) {
-    if (confirmDialogState) {
-      return Promise.resolve(false);
-    }
-    return new Promise((resolve) => {
-      confirmDialogState = { resolve, lastFocused: document.activeElement };
-      ui.confirmDialogTitle.textContent = title || t('dialog.confirmTitle');
-      ui.confirmDialogMessage.textContent = message || '';
-      ui.confirmDialogOkBtn.textContent = confirmText || t('dialog.confirm');
-      ui.confirmDialogOkBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
-      ui.confirmDialog.classList.remove('hidden');
-      requestAnimationFrame(() => ui.confirmDialog.classList.add('show'));
-      setTimeout(() => ui.confirmDialogOkBtn.focus(), 200);
-    });
-  }
-
-  function settleConfirmDialog(result) {
-    if (!confirmDialogState) {
-      return;
-    }
-    const { resolve, lastFocused } = confirmDialogState;
-    confirmDialogState = null;
-    ui.confirmDialog.classList.remove('show');
-    setTimeout(() => ui.confirmDialog.classList.add('hidden'), 180);
-    if (lastFocused && typeof lastFocused.focus === 'function') {
-      lastFocused.focus();
-    }
-    resolve(result);
-  }
-
-  function isConfirmDialogOpen() {
-    return confirmDialogState !== null;
-  }
+  // ---- 自定义确认对话框：显隐/焦点归还逻辑在 utils.js 的 createConfirmController
+  const confirmController = window.BK_UTILS.createConfirmController({
+    dialog: ui.confirmDialog,
+    titleEl: ui.confirmDialogTitle,
+    messageEl: ui.confirmDialogMessage,
+    okBtn: ui.confirmDialogOkBtn,
+    t
+  });
+  const showConfirmDialog = confirmController.show;
+  const settleConfirmDialog = confirmController.settle;
+  const isConfirmDialogOpen = confirmController.isOpen;
 
   async function copyFeedbackEmail() {
     const email = 'a1330661071@gmail.com';
@@ -585,6 +625,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (['scan', 'portrait', 'manage', 'ai-manage'].includes(record.activeTab)) {
       state.activeTab = record.activeTab;
+    }
+    // URL 深链优先：popup「打开管理器」等入口可带 #tab=scan 直达目标页
+    const hashTab = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('tab');
+    if (['scan', 'portrait', 'manage', 'ai-manage'].includes(hashTab)) {
+      state.activeTab = hashTab;
     }
     if (typeof record.manageFilter === 'string') {
       state.manageFilter = record.manageFilter;
@@ -618,7 +663,8 @@ document.addEventListener('DOMContentLoaded', () => {
       renderAiPlan();
     }
 
-    if (isPortrait && state.portraitStats) {
+    if (isPortrait) {
+      ensurePortraitStats();
       renderPortrait();
       requestAnimationFrame(() => {
         if (state.portraitChart) {
@@ -628,9 +674,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (isAiManage) {
-      refreshAiUsage();
       renderAiPlan();
+      refreshAiUsageThrottled();
     }
+  }
+
+  // 用量接口有配额含义，切换 tab 反复进出时不该每次都打一遍
+  let aiUsageLastFetchAt = 0;
+  const AI_USAGE_THROTTLE_MS = 60 * 1000;
+
+  function refreshAiUsageThrottled() {
+    if (Date.now() - aiUsageLastFetchAt < AI_USAGE_THROTTLE_MS) {
+      return;
+    }
+    aiUsageLastFetchAt = Date.now();
+    void refreshAiUsage();
   }
 
   async function loadBookmarks() {
@@ -645,14 +703,27 @@ document.addEventListener('DOMContentLoaded', () => {
     indexNodes(state.rootNodes, [], null);
     state.duplicateBookmarkIds = collectDuplicateBookmarkIds();
     syncExpandedFolderState();
-    state.portraitStats = calculatePortraitStats();
+    // 画像统计（含逐书签关键词提取）开销大，标记脏位延迟到洞察页真正打开时才算
+    state.portraitStats = null;
+    state.portraitDirty = true;
     updateOverviewStats();
     // 洞察页隐藏时只算不渲染：否则 ECharts 会在 display:none 容器上初始化成 0×0，
     // 且图表库会在用户从未打开洞察页的情况下被提前加载
     if (state.activeTab === 'portrait') {
+      ensurePortraitStats();
       renderPortrait();
     }
     renderAiPlan();
+  }
+
+  // 画像统计懒计算：脏标记置位（或首次）时重算，否则复用缓存
+  function ensurePortraitStats() {
+    if (state.portraitStats && !state.portraitDirty) {
+      return state.portraitStats;
+    }
+    state.portraitStats = calculatePortraitStats();
+    state.portraitDirty = false;
+    return state.portraitStats;
   }
 
   function syncExpandedFolderState() {
@@ -695,24 +766,27 @@ document.addEventListener('DOMContentLoaded', () => {
           title,
           path: nextPath,
           index,
-          parentFolderId
+          parentFolderId,
+          searchText: `${title} ${nextPath.join(' ')}`.toLowerCase()
         });
 
-        if (!isRootFolder(title)) {
+        if (parentFolderId === null) {
+          // 根层级（书签栏/其他书签等）：不进入移动目标与空文件夹扫描
+        } else {
           state.folderOptions.push({
             id: node.id,
             label: nextPath.join(' / ')
           });
-        }
 
-        if (node.children.length === 0 && !isRootFolder(title)) {
-          state.emptyFolders.push({
-            id: node.id,
-            title,
-            path: nextPath,
-            parentId: node.parentId,
-            index
-          });
+          if (node.children.length === 0) {
+            state.emptyFolders.push({
+              id: node.id,
+              title,
+              path: nextPath,
+              parentId: node.parentId,
+              index
+            });
+          }
         }
 
         indexNodes(node.children, nextPath, node.id);
@@ -824,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stats.maxDepth = Math.max(stats.maxDepth, folder.path.length);
       const childBookmarks = directChildCount.get(folder.id) || 0;
       if (childBookmarks > stats.largestFolder.count) {
-        stats.largestFolder = { title: folder.title, count: childBookmarks };
+        stats.largestFolder = { title: folder.title, count: childBookmarks, id: folder.id };
       }
       if (childBookmarks > 0) {
         stats.topFolders.push({
@@ -1348,21 +1422,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 本页签名 (element, target)：转接到 utils.js 的 (element, start, end, duration)
   function animateNumber(element, target, duration = 400) {
-    const start = parseInt(element.textContent, 10) || 0;
-    const diff = target - start;
-    const startTime = performance.now();
-
-    function tick(now) {
-      const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 4);
-      element.textContent = String(Math.round(start + diff * eased));
-      if (progress < 1) {
-        requestAnimationFrame(tick);
-      }
-    }
-
-    requestAnimationFrame(tick);
+    window.BK_UTILS.animateNumber(element, parseInt(element.textContent, 10) || 0, target, duration);
   }
 
   async function refreshScanStats() {
@@ -1415,21 +1477,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 后台扫描引擎的状态快照缓存（用于角标清理判断）
   let latestBgScanState = null;
 
-  function sendScanMessage(payload) {
-    return new Promise((resolve) => {
-      try {
-        chrome.runtime.sendMessage(payload, (response) => {
-          if (chrome.runtime.lastError) {
-            resolve(null);
-            return;
-          }
-          resolve(response);
-        });
-      } catch (error) {
-        resolve(null);
-      }
-    });
-  }
+  // sendScanMessage / isScannable / getDomain / attachFavicon / escapeHtml 见顶部 BK_UTILS 解构
 
   async function startQuickScan() {
     if (state.scanController.isRunning || state.scanController.isPaused) {
@@ -1448,7 +1496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.scanStatusText.textContent = t('scan.scanningNow');
     ui.scannedCount.textContent = '0';
     ui.scanInvalidCount.textContent = '0';
-    ui.scanDuration.textContent = '0s';
+    ui.scanDuration.textContent = t('scan.durationSec', { s: 0 });
     updateProgressRing(0);
     renderScanResults();
 
@@ -1690,7 +1738,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `${t('scan.lastScanPrefix')}${new Date(state.scanTime).toLocaleString(state.locale)}`
       : t('scan.notStarted');
 
-    renderScanList(ui.invalidLinksList, invalidBookmarks, 'bookmark');
+    renderScanList(ui.invalidLinksList, invalidBookmarks, 'bookmark', invalidBookmarks.length === 0 ? {
+      label: t('scan.startScanNow'),
+      onClick: () => startQuickScan()
+    } : null);
     renderScanList(ui.emptyFoldersList, state.emptyFolders, 'folder');
     updateScanSelectionUi();
   }
@@ -1703,9 +1754,18 @@ document.addEventListener('DOMContentLoaded', () => {
       : t('scan.selectAllEmptyFolders');
   }
 
-  function renderScanList(container, items, type) {
+  function renderScanList(container, items, type, emptyAction = null) {
     if (items.length === 0) {
-      container.innerHTML = `<div class="result-empty-state">${t('scan.noItems')}</div>`;
+      if (emptyAction) {
+        container.innerHTML = `
+          <div class="result-empty-state result-empty-state-cta">
+            <div>${t('scan.noItems')}</div>
+            <button class="btn btn-primary btn-sm" type="button">${escapeHtml(emptyAction.label)}</button>
+          </div>`;
+        container.querySelector('button')?.addEventListener('click', emptyAction.onClick);
+      } else {
+        container.innerHTML = `<div class="result-empty-state">${t('scan.noItems')}</div>`;
+      }
       return;
     }
 
@@ -1789,17 +1849,28 @@ document.addEventListener('DOMContentLoaded', () => {
         attachFavicon(row.querySelector('.item-favicon'), item.url, item.title);
       }
       row.querySelector('.result-delete-btn').addEventListener('click', async () => {
+        const deleteMessage = type === 'bookmark'
+          ? t('scan.confirmDeleteInvalid', { n: 1 })
+          : t('manage.confirmDeleteEmptyFolder', { t: item.title });
+        if (!(await showConfirmDialog({
+          title: t('dialog.deleteTitle'),
+          message: deleteMessage,
+          confirmText: t('dialog.delete'),
+          danger: true
+        }))) {
+          return;
+        }
         if (type === 'bookmark') {
-          await removeBookmarksByIds([item.id], false);
+          await removeBookmarksByIds([item.id], true);
           await loadBookmarks();
           await persistScanResults();
           await loadStoredScanResults();
-          showToast(t('scan.invalidBookmarkDeleted'), 'error');
+          showToast(t('scan.invalidBookmarkDeleted'), 'success');
         } else {
           state.selectedEmptyFolderIds.delete(item.id);
           await removeFoldersByIds([item.id]);
           renderScanResults();
-          showToast(t('scan.emptyFolderDeleted'), 'error');
+          showToast(t('scan.emptyFolderDeleted'), 'success');
         }
       });
 
@@ -1841,11 +1912,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    await removeBookmarksByIds(ids, false);
+    await removeBookmarksByIds(ids, true);
     await loadBookmarks();
     await persistScanResults();
     await loadStoredScanResults();
-    showToast(t('scan.invalidDeleted', { n: ids.length }), 'error');
+    showToast(t('scan.invalidDeleted', { n: ids.length }), 'success');
   }
 
   async function clearStoredScanResults() {
@@ -1872,6 +1943,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderManageTree() {
+    cancelProgressiveFolderFill();
+    state.deferFolderChildren = false;
+    renderManageTreeCore();
+  }
+
+  // 展开全部专用：先同步渲染骨架（文件夹壳、不含子节点），再按帧填充子节点，
+  // 万级书签下不会出现一帧内创建上万个节点的长任务
+  function renderManageTreeProgressive() {
+    cancelProgressiveFolderFill();
+    state.deferFolderChildren = true;
+    renderManageTreeCore();
+  }
+
+  function renderManageTreeCore() {
     ui.bookmarkTree.innerHTML = '';
 
     if (state.rootNodes.length === 0) {
@@ -1892,9 +1977,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (renderedCount === 0) {
-      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${t('manage.noMatchingBookmarks')}</div>`;
+      // 有搜索词或筛选时给出清除入口，无匹配时用户不会被卡死
+      const hasQuery = Boolean(state.searchTerm) || state.manageFilter !== 'all';
+      ui.bookmarkTree.innerHTML = hasQuery
+        ? `<div class="empty-tree-state">
+             <div>${t('manage.noMatchingBookmarks')}</div>
+             <button class="btn btn-secondary btn-sm" type="button" data-action="clear-manage-search">${t('manage.clearSearch')}</button>
+           </div>`
+        : `<div class="empty-tree-state">${t('manage.noBookmarks')}</div>`;
     } else {
       ui.bookmarkTree.appendChild(fragment);
+    }
+
+    if (progressiveFillQueue.length > 0) {
+      scheduleProgressiveFolderFill();
+    } else {
+      // 筛选/搜索态下 renderManageNode 会忽略 defer 直接全量渲染，
+      // 队列为空时必须复位标记，否则后续浏览态渲染会只出骨架不填充
+      state.deferFolderChildren = false;
     }
 
     updateManageToolbar();
@@ -1902,6 +2002,60 @@ document.addEventListener('DOMContentLoaded', () => {
     renderUndoBanner();
     updateTreeRovingTabindex();
     focusInlineEditor();
+  }
+
+  // ===== 展开全部分帧填充 =====
+  const progressiveFillQueue = [];
+  let progressiveFillFrame = null;
+  const PROGRESSIVE_FILL_BATCH = 150;
+
+  function cancelProgressiveFolderFill() {
+    if (progressiveFillFrame) {
+      clearTimeout(progressiveFillFrame);
+      progressiveFillFrame = null;
+    }
+    progressiveFillQueue.length = 0;
+  }
+
+  function scheduleProgressiveFolderFill() {
+    if (progressiveFillFrame) {
+      return;
+    }
+    // 用 setTimeout 而非 rAF 调度：后台标签页 rAF 暂停会导致填充停滞
+    progressiveFillFrame = setTimeout(drainProgressiveFolderFill, 0);
+  }
+
+  function drainProgressiveFolderFill() {
+    progressiveFillFrame = null;
+    let processed = 0;
+    while (progressiveFillQueue.length > 0 && processed < PROGRESSIVE_FILL_BATCH) {
+      const { content, folderId } = progressiveFillQueue.shift();
+      processed += 1;
+      fillFolderChildren(content, folderId);
+    }
+    if (progressiveFillQueue.length > 0) {
+      progressiveFillFrame = requestAnimationFrame(drainProgressiveFolderFill);
+    } else {
+      state.deferFolderChildren = false;
+    }
+  }
+
+  function fillFolderChildren(content, folderId) {
+    if (!content || !content.isConnected || content.childElementCount > 0) {
+      return;
+    }
+    const folder = state.folderMap.get(folderId);
+    if (!folder) {
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    (folder.children || []).forEach((child) => {
+      const rendered = renderManageNode(child);
+      if (rendered) {
+        fragment.appendChild(rendered);
+      }
+    });
+    content.appendChild(fragment);
   }
 
   function findNodeById(nodes, id) {
@@ -1959,10 +2113,410 @@ document.addEventListener('DOMContentLoaded', () => {
     updateManageToolbar();
   }
 
+  // 批量选择专用：一趟 DOM 扫描同步所有行，工具栏摘要只算一次。
+  // 逐条走 syncBookmarkSelectionUi 是 O(n²)（每条都全量扫 bookmarkMap 算摘要）
+  function syncBookmarkSelectionUiBatch() {
+    ui.bookmarkTree.querySelectorAll('[data-bookmark-id]').forEach((row) => {
+      const selected = state.selectedManageIds.has(row.dataset.bookmarkId);
+      row.classList.toggle('selected', selected);
+      const checkbox = row.querySelector('.bookmark-checkbox');
+      if (checkbox) {
+        checkbox.checked = selected;
+      }
+    });
+    updateManageToolbar();
+  }
+
+  // ===== 树容器事件委托：所有行级交互监听统一挂在 ui.bookmarkTree 上，
+  // renderManageNode 只生成结构，不再给每个节点挂 ~13 个监听器 =====
+
+  function getFolderPartsFromTarget(target) {
+    const header = target.closest('.folder-header');
+    if (!header || !ui.bookmarkTree.contains(header)) {
+      return null;
+    }
+    const section = header.closest('.folder');
+    const folderId = section?.dataset.folderId;
+    if (!folderId) {
+      return null;
+    }
+    return { header, section, content: header.nextElementSibling, folderId };
+  }
+
+  function getBookmarkArticleFromTarget(target) {
+    const article = target.closest('[data-bookmark-id]');
+    return article && ui.bookmarkTree.contains(article) ? article : null;
+  }
+
+  function isManageFiltering() {
+    return Boolean(state.searchTerm) || state.manageFilter !== 'all';
+  }
+
+  function expandFolderElement(parts) {
+    state.expandedFolderIds.add(parts.folderId);
+    if (parts.content && parts.content.childElementCount === 0) {
+      // 折叠时子节点未渲染（懒渲染），展开瞬间按当前数据补齐
+      const folder = state.folderMap.get(parts.folderId);
+      const fragment = document.createDocumentFragment();
+      (folder?.children || []).forEach((child) => {
+        const rendered = renderManageNode(child);
+        if (rendered) {
+          fragment.appendChild(rendered);
+        }
+      });
+      parts.content.appendChild(fragment);
+    }
+    parts.header.classList.add('expanded');
+    parts.content?.classList.add('show');
+    // 入场动画只在运行时展开时播放；全量重渲染不加此标记，避免动画重播
+    parts.content?.classList.add('folder-anim');
+    persistUiState();
+  }
+
+  function collapseFolderElement(parts) {
+    state.expandedFolderIds.delete(parts.folderId);
+    parts.header.classList.remove('expanded');
+    parts.content?.classList.remove('show');
+    persistUiState();
+  }
+
+  function toggleFolderExpandFromElement(parts) {
+    if (state.editingNode?.type === 'folder' && state.editingNode.id === parts.folderId) {
+      return;
+    }
+    if (isManageFiltering()) {
+      const nextShown = !parts.content.classList.contains('show');
+      parts.header.classList.toggle('expanded', nextShown);
+      parts.content.classList.toggle('show', nextShown);
+      if (nextShown) {
+        parts.content.classList.add('folder-anim');
+      }
+      return;
+    }
+    if (state.expandedFolderIds.has(parts.folderId)) {
+      collapseFolderElement(parts);
+    } else {
+      expandFolderElement(parts);
+    }
+  }
+
+  function getFolderDirectBookmarkIds(folderId) {
+    const folder = state.folderMap.get(folderId);
+    return (folder?.children || [])
+      .filter((child) => !child.children && isScannable(child.url))
+      .map((child) => child.id);
+  }
+
+  async function confirmAndDeleteBookmark(bookmarkId) {
+    const bookmark = state.bookmarkMap.get(bookmarkId);
+    if (!bookmark) {
+      return;
+    }
+    if (!(await showConfirmDialog({
+      title: t('dialog.deleteTitle'),
+      message: t('manage.confirmDeleteBookmark', { t: bookmark.title }),
+      confirmText: t('dialog.delete'),
+      danger: true
+    }))) {
+      return;
+    }
+    await removeBookmarksByIds([bookmarkId], true);
+    await loadBookmarks();
+    await loadStoredScanResults();
+    showToast(t('manage.bookmarkDeleted'), 'success');
+  }
+
+  // 返回 true 表示点击已被某个行内按钮消费（不再触发行选择/文件夹折叠）
+  function handleTreeButtonClick(event, button) {
+    const article = button.closest('[data-bookmark-id]');
+    if (article) {
+      const bookmarkId = article.dataset.bookmarkId;
+      if (button.classList.contains('btn-open')) {
+        const bookmark = state.bookmarkMap.get(bookmarkId);
+        if (bookmark?.url) {
+          chrome.tabs.create({ url: bookmark.url });
+        }
+        return true;
+      }
+      if (button.classList.contains('btn-rename')) {
+        const bookmark = state.bookmarkMap.get(bookmarkId);
+        startInlineRename('bookmark', bookmarkId, bookmark?.title || '');
+        return true;
+      }
+      if (button.classList.contains('btn-save')) {
+        void saveInlineRename();
+        return true;
+      }
+      if (button.classList.contains('btn-cancel')) {
+        cancelInlineRename();
+        return true;
+      }
+      if (button.classList.contains('btn-delete')) {
+        void confirmAndDeleteBookmark(bookmarkId);
+        return true;
+      }
+      return false;
+    }
+
+    const folderId = button.closest('.folder-header')?.closest('.folder')?.dataset.folderId;
+    if (!folderId) {
+      return false;
+    }
+    if (button.classList.contains('btn-create')) {
+      void createFolderUnder(folderId);
+      return true;
+    }
+    if (button.classList.contains('btn-select-folder')) {
+      selectFolderBookmarks(getFolderDirectBookmarkIds(folderId), button);
+      return true;
+    }
+    if (button.classList.contains('btn-rename')) {
+      const folder = state.folderMap.get(folderId);
+      startInlineRename('folder', folderId, folder?.title || t('manage.untitledFolder'));
+      return true;
+    }
+    if (button.classList.contains('btn-save')) {
+      void saveInlineRename();
+      return true;
+    }
+    if (button.classList.contains('btn-cancel')) {
+      cancelInlineRename();
+      return true;
+    }
+    if (button.classList.contains('btn-delete')) {
+      void deleteEmptyFolderFromManage(folderId);
+      return true;
+    }
+    return false;
+  }
+
+  // dragover 是高频事件：行矩形按行缓存，滚动时整体失效，避免每帧强制布局
+  const treeDragRectCache = new Map();
+
+  function getCachedDragRect(article) {
+    let rect = treeDragRectCache.get(article);
+    if (!rect) {
+      rect = article.getBoundingClientRect();
+      treeDragRectCache.set(article, rect);
+    }
+    return rect;
+  }
+
+  function invalidateTreeDragRectCache() {
+    if (treeDragRectCache.size > 0) {
+      treeDragRectCache.clear();
+    }
+  }
+
+  function setupTreeDelegatedEvents() {
+    ui.bookmarkTree.addEventListener('click', (event) => {
+      const clearSearchBtn = event.target.closest('[data-action="clear-manage-search"]');
+      if (clearSearchBtn) {
+        state.searchTerm = '';
+        if (ui.bookmarkSearchInput) {
+          ui.bookmarkSearchInput.value = '';
+        }
+        setManageFilter('all');
+        return;
+      }
+
+      const button = event.target.closest('button');
+      if (button && handleTreeButtonClick(event, button)) {
+        return;
+      }
+
+      const parts = getFolderPartsFromTarget(event.target);
+      if (parts) {
+        toggleFolderExpandFromElement(parts);
+        return;
+      }
+
+      const article = getBookmarkArticleFromTarget(event.target);
+      if (!article) {
+        return;
+      }
+      if (event.target.closest('button') || event.target.closest('.rename-editor') || event.target.classList.contains('bookmark-checkbox')) {
+        return;
+      }
+      const bookmarkId = article.dataset.bookmarkId;
+      // Ctrl/Cmd 单击切换并记录锚点；Shift 单击从锚点到当前行范围选择
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        handleRangeSelectionClick(bookmarkId, event.shiftKey);
+        return;
+      }
+      state.selectionAnchorId = bookmarkId;
+      const checkbox = article.querySelector('.bookmark-checkbox');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        toggleManageSelection(bookmarkId, checkbox.checked);
+      }
+    });
+
+    ui.bookmarkTree.addEventListener('change', (event) => {
+      const checkbox = event.target.closest('.bookmark-checkbox');
+      if (!checkbox) {
+        return;
+      }
+      const article = checkbox.closest('[data-bookmark-id]');
+      if (article) {
+        toggleManageSelection(article.dataset.bookmarkId, checkbox.checked);
+      }
+    });
+
+    ui.bookmarkTree.addEventListener('keydown', (event) => {
+      if (event.target.classList.contains('rename-input')) {
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          void saveInlineRename();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelInlineRename();
+        }
+        return;
+      }
+      const header = event.target.closest('.folder-header');
+      if (header && event.target === header && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        const parts = getFolderPartsFromTarget(header);
+        if (parts) {
+          toggleFolderExpandFromElement(parts);
+        }
+      }
+    });
+
+    ui.bookmarkTree.addEventListener('input', (event) => {
+      if (event.target.classList.contains('rename-input') && state.editingNode) {
+        state.editingNode.value = event.target.value;
+      }
+    });
+
+    ui.bookmarkTree.addEventListener('dragstart', (event) => {
+      if (state.editingNode) {
+        event.preventDefault();
+        return;
+      }
+      const parts = getFolderPartsFromTarget(event.target);
+      if (parts) {
+        state.draggedItem = { id: parts.folderId, type: 'folder' };
+        parts.section.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        setDragGhostFromFolder(parts.folderId);
+        applyDragGhostImage(event);
+        startDragAutoScroll();
+        return;
+      }
+      const article = getBookmarkArticleFromTarget(event.target);
+      if (!article) {
+        return;
+      }
+      const bookmarkId = article.dataset.bookmarkId;
+      const selectedIds = state.selectedManageIds.has(bookmarkId) ? getVisibleSelectedBookmarkIds() : [];
+      if (selectedIds.length > 1) {
+        state.draggedItem = { ids: selectedIds, type: 'bookmark-group' };
+        // 一趟 DOM 扫描标出所有被拖动行
+        ui.bookmarkTree.querySelectorAll('[data-bookmark-id]').forEach((row) => {
+          if (state.selectedManageIds.has(row.dataset.bookmarkId)) {
+            row.classList.add('dragging');
+          }
+        });
+      } else {
+        state.draggedItem = { id: bookmarkId, type: 'bookmark' };
+        article.classList.add('dragging');
+      }
+      event.dataTransfer.effectAllowed = 'move';
+      setDragGhostFromDraggedItem();
+      applyDragGhostImage(event);
+      startDragAutoScroll();
+    });
+
+    ui.bookmarkTree.addEventListener('dragend', () => {
+      invalidateTreeDragRectCache();
+      clearDragState();
+    });
+
+    ui.bookmarkTree.addEventListener('dragover', (event) => {
+      const parts = getFolderPartsFromTarget(event.target);
+      if (parts) {
+        if (!canDropDraggedItemIntoFolder(parts.folderId)) {
+          return;
+        }
+        event.preventDefault();
+        parts.header.classList.add('drop-target');
+        // 折叠文件夹悬停片刻自动展开，一次拖拽就能深入多层目录
+        if (!isManageFiltering() && !state.expandedFolderIds.has(parts.folderId)) {
+          scheduleDragExpand(parts.folderId, () => expandFolderElement(parts));
+        }
+        return;
+      }
+      const article = getBookmarkArticleFromTarget(event.target);
+      if (!article) {
+        return;
+      }
+      const bookmarkId = article.dataset.bookmarkId;
+      if (!isBookmarkCardDropAllowed(bookmarkId)) {
+        return;
+      }
+      event.preventDefault();
+      // 上半区插到目标前面，下半区插到目标后面（矩形走缓存，见 getCachedDragRect）
+      const rect = getCachedDragRect(article);
+      const insertAfter = event.clientY > rect.top + rect.height / 2;
+      article.classList.toggle('drop-before', !insertAfter);
+      article.classList.toggle('drop-after', insertAfter);
+    });
+
+    ui.bookmarkTree.addEventListener('dragleave', (event) => {
+      const parts = getFolderPartsFromTarget(event.target);
+      if (parts) {
+        parts.header.classList.remove('drop-target');
+        if (!parts.header.contains(event.relatedTarget)) {
+          cancelDragExpand(parts.folderId);
+        }
+        return;
+      }
+      const article = getBookmarkArticleFromTarget(event.target);
+      if (!article || article.contains(event.relatedTarget)) {
+        return;
+      }
+      article.classList.remove('drop-before');
+      article.classList.remove('drop-after');
+    });
+
+    ui.bookmarkTree.addEventListener('drop', async (event) => {
+      const parts = getFolderPartsFromTarget(event.target);
+      if (parts) {
+        event.preventDefault();
+        parts.header.classList.remove('drop-target');
+        cancelDragExpand(parts.folderId);
+        invalidateTreeDragRectCache();
+        await moveDraggedItemToFolder(parts.folderId);
+        return;
+      }
+      const article = getBookmarkArticleFromTarget(event.target);
+      if (!article) {
+        return;
+      }
+      const bookmarkId = article.dataset.bookmarkId;
+      if (!isBookmarkCardDropAllowed(bookmarkId)) {
+        return;
+      }
+      event.preventDefault();
+      const insertAfter = article.classList.contains('drop-after');
+      article.classList.remove('drop-before');
+      article.classList.remove('drop-after');
+      invalidateTreeDragRectCache();
+      await moveDraggedItemBesideBookmark(bookmarkId, insertAfter);
+    });
+
+    // 拖拽期间任何滚动（树容器、页面）都会让缓存的行矩形失真
+    document.addEventListener('scroll', invalidateTreeDragRectCache, { capture: true, passive: true });
+  }
+
   function renderManageNode(node) {
     if (node.children) {
       const folder = state.folderMap.get(node.id);
-      const matchesFolder = matchesSearch(`${folder?.title || ''} ${(folder?.path || []).join(' ')}`);
+      const matchesFolder = matchesSearch(folder?.searchText);
       // 搜索或筛选激活时保持全量渲染，让折叠文件夹内的匹配项可见；
       // 浏览态下折叠文件夹的子节点延迟到展开时再渲染，控制初始 DOM 规模
       const isFiltering = Boolean(state.searchTerm) || state.manageFilter !== 'all';
@@ -1976,6 +2530,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!matchesFolder && children.length === 0) {
           return null;
         }
+      } else if (isExpanded && state.deferFolderChildren) {
+        // 展开全部分帧模式：此处只出骨架，子节点由 drainProgressiveFolderFill 补
+        children = [];
       } else if (isExpanded) {
         children = node.children
           .map((child) => renderManageNode(child))
@@ -2026,137 +2583,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const content = document.createElement('div');
       content.className = `folder-children ${showChildren ? 'show' : ''}`;
       children.forEach((child) => content.appendChild(child));
+      if (isExpanded && state.deferFolderChildren) {
+        progressiveFillQueue.push({ content, folderId: node.id });
+      }
 
-      const expandFolderNow = () => {
-        state.expandedFolderIds.add(node.id);
-        if (content.childElementCount === 0) {
-          const fragment = document.createDocumentFragment();
-          node.children.forEach((child) => {
-            const rendered = renderManageNode(child);
-            if (rendered) {
-              fragment.appendChild(rendered);
-            }
-          });
-          content.appendChild(fragment);
-        }
-        header.classList.add('expanded');
-        content.classList.add('show');
-        persistUiState();
-      };
-
-      const collapseFolderNow = () => {
-        state.expandedFolderIds.delete(node.id);
-        header.classList.remove('expanded');
-        content.classList.remove('show');
-        persistUiState();
-      };
-
-      const toggleFolderExpand = () => {
-        if (isEditing) {
-          return;
-        }
-        if (isFiltering) {
-          const nextShown = !content.classList.contains('show');
-          header.classList.toggle('expanded', nextShown);
-          content.classList.toggle('show', nextShown);
-          return;
-        }
-        if (state.expandedFolderIds.has(node.id)) {
-          collapseFolderNow();
-        } else {
-          expandFolderNow();
-        }
-      };
-
-      header.addEventListener('click', toggleFolderExpand);
-      header.addEventListener('keydown', (event) => {
-        if (event.target !== header || (event.key !== 'Enter' && event.key !== ' ')) {
-          return;
-        }
-        event.preventDefault();
-        toggleFolderExpand();
-      });
-      header.addEventListener('dragover', (event) => {
-        if (!canDropDraggedItemIntoFolder(node.id)) {
-          return;
-        }
-        event.preventDefault();
-        header.classList.add('drop-target');
-        // 折叠文件夹悬停片刻自动展开，一次拖拽就能深入多层目录
-        if (!isFiltering && !state.expandedFolderIds.has(node.id)) {
-          scheduleDragExpand(node.id, expandFolderNow);
-        }
-      });
-      header.addEventListener('dragleave', (event) => {
-        header.classList.remove('drop-target');
-        if (!header.contains(event.relatedTarget)) {
-          cancelDragExpand(node.id);
-        }
-      });
-      header.addEventListener('drop', async (event) => {
-        event.preventDefault();
-        header.classList.remove('drop-target');
-        cancelDragExpand(node.id);
-        await moveDraggedItemToFolder(node.id);
-      });
-      header.addEventListener('dragstart', (event) => {
-        if (state.editingNode) {
-          event.preventDefault();
-          return;
-        }
-        state.draggedItem = {
-          id: node.id,
-          type: 'folder'
-        };
-        section.classList.add('dragging');
-        event.dataTransfer.effectAllowed = 'move';
-        setDragGhostFromFolder(node.id);
-        applyDragGhostImage(event);
-        startDragAutoScroll();
-      });
-      header.addEventListener('dragend', () => {
-        clearDragState();
-      });
-      header.querySelector('.btn-rename')?.addEventListener('click', (event) => {
-        event.stopPropagation();
-        startInlineRename('folder', node.id, folder?.title || t('manage.untitledFolder'));
-      });
-      header.querySelector('.btn-create')?.addEventListener('click', async (event) => {
-        event.stopPropagation();
-        await createFolderUnder(node.id);
-      });
-      header.querySelector('.btn-select-folder')?.addEventListener('click', (event) => {
-        event.stopPropagation();
-        selectFolderBookmarks(directBookmarkIds, event.currentTarget);
-      });
-      header.querySelector('.btn-save')?.addEventListener('click', async (event) => {
-        event.stopPropagation();
-        await saveInlineRename();
-      });
-      header.querySelector('.btn-cancel')?.addEventListener('click', (event) => {
-        event.stopPropagation();
-        cancelInlineRename();
-      });
-      header.querySelector('.btn-delete')?.addEventListener('click', async (event) => {
-        event.stopPropagation();
-        await deleteEmptyFolderFromManage(node.id);
-      });
-      header.querySelector('.rename-input')?.addEventListener('input', (event) => {
-        if (state.editingNode) {
-          state.editingNode.value = event.target.value;
-        }
-      });
-      header.querySelector('.rename-input')?.addEventListener('keydown', async (event) => {
-        event.stopPropagation();
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          await saveInlineRename();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          cancelInlineRename();
-        }
-      });
-
+      // 展开/折叠/拖拽/行内按钮等交互全部由 ui.bookmarkTree 上的委托监听处理
+      // （见 setupTreeDelegatedEvents），这里只负责生成结构
       section.appendChild(header);
       section.appendChild(content);
       return section;
@@ -2206,129 +2638,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="drop-indicator" aria-hidden="true"></div>
     `;
 
-    const checkbox = article.querySelector('.bookmark-checkbox');
-    checkbox.addEventListener('change', () => {
-      toggleManageSelection(bookmark.id, checkbox.checked);
-    });
-
-    article.addEventListener('click', (event) => {
-      if (event.target.closest('button') || event.target.closest('.rename-editor') || event.target.classList.contains('bookmark-checkbox')) {
-        return;
-      }
-      // Ctrl/Cmd 单击切换并记录锚点；Shift 单击从锚点到当前行范围选择
-      if (event.shiftKey || event.metaKey || event.ctrlKey) {
-        event.preventDefault();
-        handleRangeSelectionClick(bookmark.id, event.shiftKey);
-        return;
-      }
-      state.selectionAnchorId = bookmark.id;
-      checkbox.checked = !checkbox.checked;
-      toggleManageSelection(bookmark.id, checkbox.checked);
-    });
-
-    article.querySelector('.btn-open').addEventListener('click', () => chrome.tabs.create({ url: bookmark.url }));
+    // 交互（选择/打开/重命名/删除/拖拽）全部由 setupTreeDelegatedEvents 统一委托处理
     attachFavicon(article.querySelector('.bookmark-favicon'), bookmark.url, bookmark.title);
-    article.querySelector('.btn-rename')?.addEventListener('click', (event) => {
-      event.stopPropagation();
-      startInlineRename('bookmark', bookmark.id, bookmark.title);
-    });
-    article.querySelector('.btn-save')?.addEventListener('click', async (event) => {
-      event.stopPropagation();
-      await saveInlineRename();
-    });
-    article.querySelector('.btn-cancel')?.addEventListener('click', (event) => {
-      event.stopPropagation();
-      cancelInlineRename();
-    });
-    article.querySelector('.btn-delete').addEventListener('click', async () => {
-      if (!(await showConfirmDialog({
-        title: t('dialog.deleteTitle'),
-        message: t('manage.confirmDeleteBookmark', { t: bookmark.title }),
-        confirmText: t('dialog.delete'),
-        danger: true
-      }))) {
-        return;
-      }
-      await removeBookmarksByIds([bookmark.id], true);
-      await loadBookmarks();
-      await loadStoredScanResults();
-      showToast(t('manage.bookmarkDeleted'), 'error');
-    });
-    article.querySelector('.rename-input')?.addEventListener('input', (event) => {
-      if (state.editingNode) {
-        state.editingNode.value = event.target.value;
-      }
-    });
-    article.querySelector('.rename-input')?.addEventListener('keydown', async (event) => {
-      event.stopPropagation();
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        await saveInlineRename();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        cancelInlineRename();
-      }
-    });
-
-    article.addEventListener('dragstart', (event) => {
-      if (state.editingNode) {
-        event.preventDefault();
-        return;
-      }
-      const selectedIds = state.selectedManageIds.has(bookmark.id)
-        ? getVisibleSelectedBookmarkIds()
-        : [];
-      if (selectedIds.length > 1) {
-        state.draggedItem = {
-          ids: selectedIds,
-          type: 'bookmark-group'
-        };
-        selectedIds.forEach((id) => {
-          ui.bookmarkTree.querySelector(`[data-bookmark-id="${id}"]`)?.classList.add('dragging');
-        });
-      } else {
-        state.draggedItem = {
-          id: bookmark.id,
-          type: 'bookmark'
-        };
-        article.classList.add('dragging');
-      }
-      event.dataTransfer.effectAllowed = 'move';
-      setDragGhostFromDraggedItem();
-      applyDragGhostImage(event);
-      startDragAutoScroll();
-    });
-    article.addEventListener('dragend', () => {
-      clearDragState();
-    });
-    article.addEventListener('dragover', (event) => {
-      if (!isBookmarkCardDropAllowed(bookmark.id)) {
-        return;
-      }
-      event.preventDefault();
-      // 上半区插到目标前面，下半区插到目标后面
-      const rect = article.getBoundingClientRect();
-      const insertAfter = event.clientY > rect.top + rect.height / 2;
-      article.classList.toggle('drop-before', !insertAfter);
-      article.classList.toggle('drop-after', insertAfter);
-    });
-    article.addEventListener('dragleave', (event) => {
-      if (article.contains(event.relatedTarget)) {
-        return;
-      }
-      article.classList.remove('drop-before');
-      article.classList.remove('drop-after');
-    });
-    article.addEventListener('drop', async (event) => {
-      if (!isBookmarkCardDropAllowed(bookmark.id)) {
-        return;
-      }
-      event.preventDefault();
-      const insertAfter = article.classList.contains('drop-after');
-      article.classList.remove('drop-before');
-      article.classList.remove('drop-after');
-      await moveDraggedItemBesideBookmark(bookmark.id, insertAfter);
-    });
 
     return article;
   }
@@ -2406,8 +2717,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openLargestFolderFromPortrait() {
-    const title = state.portraitStats?.largestFolder?.title;
-    focusManageView(title || '', title
+    const largest = state.portraitStats?.largestFolder;
+    if (largest?.id && state.folderMap.has(largest.id)) {
+      revealManageNode(largest.id, 'folder');
+      return;
+    }
+    // 兜底：缓存的统计里没有文件夹 id（旧版本数据），退回文本搜索
+    const title = largest?.title || '';
+    focusManageView(title, title
       ? t('portrait.focusFoldersRelated', { q: title })
       : t('portrait.switchedToManage'));
   }
@@ -2444,17 +2761,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openBookmarkFromScan(item) {
-    const query = item.title || item.domain || '';
-    focusManageView(query, query
-      ? t('portrait.focusBookmarks', { q: query })
-      : t('portrait.switchedToManage'));
+    revealManageNode(item.id, 'bookmark');
   }
 
   function openFolderFromScan(item) {
-    const query = item.title || '';
-    focusManageView(query, query
-      ? t('portrait.focusFolder', { q: query })
-      : t('portrait.switchedToManage'));
+    revealManageNode(item.id, 'folder');
   }
 
   function focusManageView(query, message) {
@@ -2466,6 +2777,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     renderManageTree();
     showToast(message, 'info');
+  }
+
+  // ID 级定位：展开目标的所有祖先文件夹 → 滚动到节点并高亮闪烁。
+  // 比旧的“填搜索框文本”精确：重名书签不会命中多行
+  function revealManageNode(nodeId, type = 'bookmark') {
+    switchTab('manage');
+    setManageFilter('all');
+    state.searchTerm = '';
+    if (ui.bookmarkSearchInput) {
+      ui.bookmarkSearchInput.value = '';
+    }
+
+    // 收集需要展开的祖先链（文件夹目标不展开它自己，只要可见即可）
+    const chain = [];
+    let walkId = type === 'bookmark'
+      ? state.bookmarkMap.get(nodeId)?.parentFolderId || null
+      : state.folderMap.get(nodeId)?.parentFolderId || null;
+    while (walkId) {
+      const folder = state.folderMap.get(walkId);
+      if (!folder) {
+        break;
+      }
+      chain.push(walkId);
+      walkId = folder.parentFolderId || null;
+    }
+    chain.forEach((id) => state.expandedFolderIds.add(id));
+
+    renderManageTree();
+
+    const selector = type === 'bookmark'
+      ? `[data-bookmark-id="${CSS.escape(nodeId)}"]`
+      : `[data-folder-id="${CSS.escape(nodeId)}"] .folder-header`;
+    const target = ui.bookmarkTree.querySelector(selector);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('highlight-flash');
+      setTimeout(() => target.classList.remove('highlight-flash'), 2000);
+      showToast(type === 'bookmark' ? t('manage.revealedBookmark') : t('manage.revealedFolder'), 'info');
+    } else {
+      showToast(t('manage.revealNotFound'), 'warning');
+    }
   }
 
   function toggleManageSelection(bookmarkId, selected) {
@@ -2530,11 +2882,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const b = visibleIds.indexOf(bookmarkId);
     const [start, end] = a <= b ? [a, b] : [b, a];
     for (let i = start; i <= end; i += 1) {
-      const id = visibleIds[i];
-      if (!state.selectedManageIds.has(id)) {
-        toggleManageSelection(id, true);
-      }
+      state.selectedManageIds.add(visibleIds[i]);
     }
+    syncBookmarkSelectionUiBatch();
   }
 
   function getBookmarkDragHint(bookmarkId) {
@@ -2557,8 +2907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.selectedManageIds.add(id);
       }
     });
-    updateManageToolbar();
-    bookmarkIds.forEach((id) => syncBookmarkSelectionUi(id));
+    syncBookmarkSelectionUiBatch();
     if (triggerButton instanceof HTMLElement) {
       triggerButton.textContent = allSelected
         ? t('manage.selectFolderBookmarks')
@@ -4128,17 +4477,16 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         state.selectedManageIds.add(id);
       }
-      syncBookmarkSelectionUi(id);
     });
-    updateManageToolbar();
+    syncBookmarkSelectionUiBatch();
   }
 
   function clearManageSelection() {
-    Array.from(state.selectedManageIds).forEach((id) => {
-      state.selectedManageIds.delete(id);
-      syncBookmarkSelectionUi(id);
-    });
-    updateManageToolbar();
+    if (state.selectedManageIds.size === 0) {
+      return;
+    }
+    state.selectedManageIds.clear();
+    syncBookmarkSelectionUiBatch();
   }
 
   async function deleteSelectedBookmarks() {
@@ -4159,7 +4507,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await removeBookmarksByIds(ids, true);
     await loadBookmarks();
     await loadStoredScanResults();
-    showToast(t('manage.bookmarksDeleted', { n: ids.length }), 'error');
+    showToast(t('manage.bookmarksDeleted', { n: ids.length }), 'success');
   }
 
   // ===== "移动到…"批量移动对话框 =====
@@ -4277,6 +4625,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isConfirmDialogOpen()) {
       return;
     }
+    // Ctrl/Cmd+Z：撤销上一步（书签树有焦点或在管理页时生效，输入框内不劫持）
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+      if (ui.managePage.classList.contains('hidden')) {
+        return;
+      }
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
+        return;
+      }
+      if (state.undoStack.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      void undoLastAction();
+      return;
+    }
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
       return;
     }
@@ -4339,7 +4703,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function hideMoveFolderDialog() {
     ui.moveFolderDialog.classList.remove('show');
-    setTimeout(() => ui.moveFolderDialog.classList.add('hidden'), 180);
+    setTimeout(() => ui.moveFolderDialog.classList.add('hidden'), DIALOG_HIDE_DELAY_MS);
     restoreDialogFocus();
   }
 
@@ -4613,6 +4977,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return Array.isArray(folder?.children) ? folder.children.length : 0;
   }
 
+  function moveBookmarkSafe(id, destination) {
+    return new Promise((resolve, reject) => {
+      chrome.bookmarks.move(id, destination, () => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   async function moveBookmarkIdsToFolder(ids, folderId, message) {
     const previousState = ids.map((id) => {
       const bookmark = state.bookmarkMap.get(id);
@@ -4623,18 +4999,24 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     });
 
+    // 顺序移动保证 index 语义，单条失败不中断后续
     let insertIndex = getFolderInsertIndex(folderId);
+    let movedCount = 0;
+    const moveResults = [];
     for (const id of ids) {
-      await new Promise((resolve, reject) => {
-        chrome.bookmarks.move(id, { parentId: folderId, index: insertIndex }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
+      try {
+        await moveBookmarkSafe(id, { parentId: folderId, index: insertIndex });
+        movedCount += 1;
+        moveResults.push({ status: 'fulfilled' });
+      } catch (error) {
+        moveResults.push({ status: 'rejected', reason: error });
+      }
       insertIndex += 1;
+    }
+    reportPartialFailures(moveResults);
+    if (movedCount === 0) {
+      clearDragState();
+      return;
     }
 
     recordUndoAction({
@@ -4645,7 +5027,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
-    showToast(message, 'warning');
+    showToast(message, 'success');
   }
 
   async function moveBookmarkIdsBesideTarget(ids, targetId, insertAfter, message) {
@@ -4674,17 +5056,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 0);
 
     let insertIndex = Math.max(0, target.index - shiftCount + (insertAfter ? 1 : 0));
+    let movedCount = 0;
+    const moveResults = [];
     for (const id of ids) {
-      await new Promise((resolve, reject) => {
-        chrome.bookmarks.move(id, { parentId: target.parentId, index: insertIndex }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
+      try {
+        await moveBookmarkSafe(id, { parentId: target.parentId, index: insertIndex });
+        movedCount += 1;
+        moveResults.push({ status: 'fulfilled' });
+      } catch (error) {
+        moveResults.push({ status: 'rejected', reason: error });
+      }
       insertIndex += 1;
+    }
+    reportPartialFailures(moveResults);
+    if (movedCount === 0) {
+      clearDragState();
+      return;
     }
 
     recordUndoAction({
@@ -4695,7 +5082,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
-    showToast(message, 'warning');
+    showToast(message, 'success');
   }
 
   async function moveDraggedItemToFolder(folderId) {
@@ -4734,15 +5121,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }];
     const insertIndex = getFolderInsertIndex(folderId);
 
-    await new Promise((resolve, reject) => {
-      chrome.bookmarks.move(folder.id, { parentId: folderId, index: insertIndex }, () => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve();
-        }
-      });
-    });
+    try {
+      await moveBookmarkSafe(folder.id, { parentId: folderId, index: insertIndex });
+    } catch (error) {
+      showToast(t('manage.moveFailed'), 'error');
+      clearDragState();
+      return;
+    }
 
     recordUndoAction({
       type: 'move',
@@ -4752,7 +5137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearDragState();
     await loadBookmarks();
     await loadStoredScanResults();
-    showToast(t('manage.movedFolder', { t: folder.title }), 'warning');
+    showToast(t('manage.movedFolder', { t: folder.title }), 'success');
   }
 
   async function moveDraggedItemBesideBookmark(targetId, insertAfter) {
@@ -4804,6 +5189,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function removeBookmarkSafe(id) {
+    return new Promise((resolve, reject) => {
+      chrome.bookmarks.remove(id, () => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  function removeFolderSafe(id) {
+    return new Promise((resolve, reject) => {
+      chrome.bookmarks.removeTree(id, () => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  function reportPartialFailures(results) {
+    const failedCount = results.filter((result) => result.status === 'rejected').length;
+    if (failedCount > 0) {
+      showToast(t('common.batchPartialFailed', { n: failedCount }), 'warning');
+    }
+    return failedCount;
+  }
+
   async function removeBookmarksByIds(ids, recordUndo) {
     const snapshot = recordUndo
       ? ids.map((id) => {
@@ -4818,20 +5235,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }).filter(Boolean)
       : [];
 
-    for (const id of ids) {
-      await new Promise((resolve, reject) => {
-        chrome.bookmarks.remove(id, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
+    // 逐条容错：单条失败（如已在其他标签页被删除）不中断整批
+    const results = await Promise.allSettled(ids.map((id) => removeBookmarkSafe(id)));
+    results.forEach((result, position) => {
+      if (result.status !== 'fulfilled') {
+        return;
+      }
+      const id = ids[position];
       delete state.invalidLinksMap[id];
       state.selectedManageIds.delete(id);
       state.selectedScanIds.delete(id);
-    }
+    });
+    reportPartialFailures(results);
 
     if (recordUndo && snapshot.length > 0) {
       recordUndoAction({
@@ -4843,17 +5258,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function removeFoldersByIds(ids) {
-    for (const id of ids) {
-      await new Promise((resolve, reject) => {
-        chrome.bookmarks.removeTree(id, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
+    // 删除前快照，撤销时按原位置重建（空文件夹无子节点，重建即完整还原）
+    const snapshot = ids.map((id) => {
+      const folder = state.folderMap.get(id);
+      return folder ? {
+        id: folder.id,
+        parentId: folder.parentId,
+        index: folder.index,
+        title: folder.title
+      } : null;
+    }).filter(Boolean);
+
+    const results = await Promise.allSettled(ids.map((id) => removeFolderSafe(id)));
+    const removedIds = [];
+    results.forEach((result, position) => {
+      if (result.status === 'fulfilled') {
+        removedIds.push(ids[position]);
+        state.selectedEmptyFolderIds.delete(ids[position]);
+      }
+    });
+    reportPartialFailures(results);
+
+    if (removedIds.length > 0) {
+      recordUndoAction({
+        type: 'folderDelete',
+        payload: snapshot.filter((item) => removedIds.includes(item.id)),
+        message: t('manage.undoHintFolderDelete')
       });
-      state.selectedEmptyFolderIds.delete(id);
     }
     await loadBookmarks();
     await loadStoredScanResults();
@@ -4903,14 +5334,30 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    await new Promise((resolve, reject) => {
-      chrome.bookmarks.update(editingNode.id, { title: trimmedTitle }, () => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve();
-        }
+    try {
+      await new Promise((resolve, reject) => {
+        chrome.bookmarks.update(editingNode.id, { title: trimmedTitle }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
       });
+    } catch (error) {
+      // 保留编辑态，用户可重试或取消
+      showToast(t('manage.renameFailed'), 'error');
+      return;
+    }
+
+    recordUndoAction({
+      type: 'rename',
+      payload: {
+        id: editingNode.id,
+        type: editingNode.type,
+        previousTitle: currentNode.title
+      },
+      message: t('manage.undoHintRename')
     });
 
     state.editingNode = null;
@@ -4928,25 +5375,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const insertIndex = Array.isArray(parentFolder.children) ? parentFolder.children.length : 0;
-    const createdFolder = await new Promise((resolve, reject) => {
-      chrome.bookmarks.create({
-        parentId,
-        index: insertIndex,
-        title: t('manage.newFolderDefault')
-      }, (node) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(node);
-        }
+    let createdFolder;
+    try {
+      createdFolder = await new Promise((resolve, reject) => {
+        chrome.bookmarks.create({
+          parentId,
+          index: insertIndex,
+          title: t('manage.newFolderDefault')
+        }, (node) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(node);
+          }
+        });
       });
-    });
+    } catch (error) {
+      showToast(t('manage.createFailed'), 'error');
+      return;
+    }
 
     state.editingNode = {
       type: 'folder',
       id: createdFolder.id,
       value: createdFolder.title || t('manage.newFolderDefault')
     };
+    recordUndoAction({
+      type: 'create',
+      payload: { id: createdFolder.id, parentId },
+      message: t('manage.undoHintCreate')
+    });
     state.expandedFolderIds.add(parentId);
     state.expandedFolderIds.add(createdFolder.id);
     await loadBookmarks();
@@ -4983,7 +5441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     await removeFoldersByIds([id]);
-    showToast(t('manage.emptyFolderDeletedToast'), 'error');
+    showToast(t('manage.emptyFolderDeletedToast'), 'success');
   }
 
   function toggleSelectAllEmptyFolders() {
@@ -5021,7 +5479,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     await removeFoldersByIds(ids);
     renderScanResults();
-    showToast(t('manage.emptyFoldersDeleted', { n: ids.length }), 'error');
+    showToast(t('manage.emptyFoldersDeleted', { n: ids.length }), 'success');
   }
 
   // ---- 撤销栈：保留最近 10 步可撤销操作，banner 每次撤销一步
@@ -5034,46 +5492,95 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function createBookmarkSafe(item) {
+    return new Promise((resolve, reject) => {
+      chrome.bookmarks.create({
+        parentId: item.parentId,
+        index: item.index,
+        title: item.title,
+        url: item.url
+      }, () => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   async function undoLastAction() {
     if (state.undoStack.length === 0) {
       return;
     }
 
     const action = state.undoStack.pop();
+    let failedCount = 0;
 
-    if (action.type === 'delete') {
-      for (const bookmark of action.payload) {
-        await new Promise((resolve, reject) => {
-          chrome.bookmarks.create({
-            parentId: bookmark.parentId,
-            index: bookmark.index,
-            title: bookmark.title,
-            url: bookmark.url
-          }, () => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
-            } else {
-              resolve();
-            }
-          });
-        });
+    const runStep = async (step) => {
+      try {
+        await step();
+      } catch (error) {
+        failedCount += 1;
       }
-      showToast(t('manage.undoDeleteDone'), 'success');
+    };
+
+    if (action.type === 'delete' || action.type === 'folderDelete') {
+      // 删除恢复：书签带 url，文件夹快照没有；逐条容错
+      const steps = action.payload.map((item) => item.url !== undefined
+        ? () => createBookmarkSafe(item)
+        : () => new Promise((resolve, reject) => {
+            chrome.bookmarks.create({
+              parentId: item.parentId,
+              index: item.index,
+              title: item.title
+            }, () => {
+              if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+              } else {
+                resolve();
+              }
+            });
+          }));
+      // 顺序恢复保证 index 语义（同批多项时按原相对顺序落位）
+      for (const step of steps) {
+        await runStep(step);
+      }
+      showToast(failedCount > 0 ? t('manage.undoRetryFailed') : t('manage.undoDeleteDone'), failedCount > 0 ? 'warning' : 'success');
     }
 
     if (action.type === 'move') {
       for (const bookmark of action.payload) {
-        await new Promise((resolve, reject) => {
-          chrome.bookmarks.move(bookmark.id, { parentId: bookmark.parentId, index: bookmark.index }, () => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
-            } else {
-              resolve();
-            }
-          });
-        });
+        await runStep(() => moveBookmarkSafe(bookmark.id, { parentId: bookmark.parentId, index: bookmark.index }));
       }
-      showToast(t('manage.undoMoveDone'), 'success');
+      showToast(failedCount > 0 ? t('manage.undoRetryFailed') : t('manage.undoMoveDone'), failedCount > 0 ? 'warning' : 'success');
+      if (failedCount > 0) {
+        // move 可幂等重试：放回栈顶，用户可再按一次撤销
+        state.undoStack.push(action);
+      }
+    }
+
+    if (action.type === 'create') {
+      // 撤销新建 = 删除该文件夹（连同期间放入的内容一并移除）
+      await runStep(() => removeFolderSafe(action.payload.id));
+      showToast(failedCount > 0 ? t('manage.undoRetryFailed') : t('manage.undoHintCreate'), failedCount > 0 ? 'warning' : 'success');
+    }
+
+    if (action.type === 'rename') {
+      await runStep(() => new Promise((resolve, reject) => {
+        chrome.bookmarks.update(action.payload.id, { title: action.payload.previousTitle }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      }));
+      showToast(failedCount > 0 ? t('manage.undoRetryFailed') : t('manage.undoHintRename'), failedCount > 0 ? 'warning' : 'success');
+      if (failedCount > 0) {
+        // rename 同样可幂等重试
+        state.undoStack.push(action);
+      }
     }
 
     await loadBookmarks();
@@ -5110,11 +5617,20 @@ document.addEventListener('DOMContentLoaded', () => {
     state.expandedFolderIds.clear();
     if (state.isExpandedByDefault) {
       state.folderMap.forEach((_, id) => state.expandedFolderIds.add(id));
+      renderManageTreeProgressive();
+    } else {
+      renderManageTree();
     }
-    renderManageTree();
   }
 
+  const TOAST_MAX_VISIBLE = 4;
+
   function showToast(message, type = 'info', duration = 2600) {
+    // 堆叠上限：防止连续操作时 toast 淹没屏幕
+    while (ui.toastContainer.children.length >= TOAST_MAX_VISIBLE) {
+      ui.toastContainer.firstElementChild.remove();
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
@@ -5131,51 +5647,30 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => toast.remove(), 220);
     };
 
+    let removeTimer = null;
+    const scheduleRemove = (delay) => {
+      clearTimeout(removeTimer);
+      removeTimer = setTimeout(remove, delay);
+    };
+
     toast.querySelector('.toast-close').addEventListener('click', remove);
+    // 悬停暂停自动消失，移开后给一段短缓冲
+    toast.addEventListener('mouseenter', () => clearTimeout(removeTimer));
+    toast.addEventListener('mouseleave', () => scheduleRemove(1200));
     if (duration > 0) {
-      setTimeout(remove, duration);
+      scheduleRemove(duration);
     }
   }
 
-  function isScannable(url) {
-    return Boolean(url && !url.startsWith('chrome://') && !url.startsWith('javascript:') && !url.startsWith('data:'));
-  }
-
-  function isRootFolder(title) {
-    return ['书签栏', '其他书签', '移动设备书签', 'Bookmarks Bar', 'Other Bookmarks', 'Mobile Bookmarks'].includes(title);
-  }
-
-  function getDomain(url) {
-    try {
-      return new URL(url).hostname.replace(/^www\./, '');
-    } catch (error) {
-      return url;
-    }
-  }
-
-  function getFaviconUrl(url, size = 32) {
-    return chrome.runtime.getURL(`/_favicon/?pageUrl=${encodeURIComponent(url)}&size=${size}`);
-  }
-
-  function createFaviconFallback(title = '') {
-    const letter = String(title || '?').trim().charAt(0).toUpperCase() || '?';
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <rect width="64" height="64" rx="14" fill="#e7f0ff"/>
-        <text x="50%" y="54%" text-anchor="middle" font-size="28" font-family="Arial, sans-serif" fill="#2f6fda">${letter}</text>
-      </svg>
-    `;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-  }
-
+  // 本页存在 20px 大图标场景（bookmark-favicon-lg），基于 utils.js 的子函数做尺寸分支
   function attachFavicon(image, url, title = '') {
     if (!image || !url) {
       return;
     }
     const size = image.classList.contains('bookmark-favicon-lg') ? 20 : 16;
-    image.src = getFaviconUrl(url, size);
+    image.src = window.BK_UTILS.getFaviconUrl(url, size);
     image.addEventListener('error', () => {
-      image.src = createFaviconFallback(title);
+      image.src = window.BK_UTILS.createFaviconFallback(title);
     }, { once: true });
   }
 
@@ -5324,15 +5819,6 @@ document.addEventListener('DOMContentLoaded', () => {
       month: 'short',
       day: 'numeric'
     }).format(date);
-  }
-
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
   }
 
   // 把命中搜索词的片段包上 <mark>；未命中时原样转义返回
