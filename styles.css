@@ -1069,11 +1069,6 @@ a:hover {
   border-top: 1px solid var(--border-light);
 }
 
-/* 次要操作（如反馈弹窗里的「复制邮箱」兜底）固定在 footer 最左侧 */
-.dialog-footer-secondary {
-  margin-right: auto;
-}
-
 /* ========================================
    Form Elements
    ======================================== */

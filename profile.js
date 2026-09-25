@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     closeFeedbackBtn: document.getElementById('closeFeedbackBtn'),
     cancelFeedbackBtn: document.getElementById('cancelFeedbackBtn'),
     feedbackSubmitBtn: document.getElementById('feedbackSubmitBtn'),
-    feedbackCopyEmailBtn: document.getElementById('feedbackCopyEmailBtn'),
     feedbackContentInput: document.getElementById('feedbackContentInput'),
     feedbackContactInput: document.getElementById('feedbackContactInput'),
     timeoutValue: document.getElementById('timeoutValue'),
@@ -306,7 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.closeFeedbackBtn?.addEventListener('click', hideFeedbackDialog);
     ui.cancelFeedbackBtn?.addEventListener('click', hideFeedbackDialog);
     ui.feedbackSubmitBtn?.addEventListener('click', submitFeedback);
-    ui.feedbackCopyEmailBtn?.addEventListener('click', copyFeedbackEmail);
     ui.feedbackDialog?.addEventListener('click', (event) => {
       if (event.target === ui.feedbackDialog) {
         hideFeedbackDialog();
@@ -618,18 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const settleConfirmDialog = confirmController.settle;
   const isConfirmDialogOpen = confirmController.isOpen;
 
-  // ---- 反馈：弹窗表单提交到后端，复制邮箱保留为提交失败时的兜底
-  const FEEDBACK_EMAIL = 'a1330661071@gmail.com';
-
-  async function copyFeedbackEmail() {
-    try {
-      await navigator.clipboard.writeText(FEEDBACK_EMAIL);
-      showToast(t('toast.feedbackCopied'), 'success');
-    } catch (error) {
-      showToast(t('toast.feedbackCopyFailed'), 'warning');
-    }
-  }
-
+  // ---- 反馈：弹窗表单提交到后端
   function showFeedbackDialog() {
     rememberDialogFocus();
     ui.feedbackDialog.classList.remove('hidden');
