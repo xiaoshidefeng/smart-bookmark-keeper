@@ -1069,6 +1069,11 @@ a:hover {
   border-top: 1px solid var(--border-light);
 }
 
+/* 次要操作（如反馈弹窗里的「复制邮箱」兜底）固定在 footer 最左侧 */
+.dialog-footer-secondary {
+  margin-right: auto;
+}
+
 /* ========================================
    Form Elements
    ======================================== */
@@ -1085,7 +1090,8 @@ a:hover {
 }
 
 .form-input,
-.form-select {
+.form-select,
+.form-textarea {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-body);
@@ -1097,15 +1103,23 @@ a:hover {
   transition: border-color var(--duration-fast), box-shadow var(--duration-fast), background-color var(--duration-fast);
 }
 
+.form-textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
 .form-input:focus,
-.form-select:focus {
+.form-select:focus,
+.form-textarea:focus {
   outline: none;
   border-color: var(--color-primary-400);
   background-color: var(--bg-card);
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
 }
 
-.form-input::placeholder {
+.form-input::placeholder,
+.form-textarea::placeholder {
   color: var(--text-muted);
 }
 

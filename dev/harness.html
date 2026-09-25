@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HARNESS · 智能书签管家</title>
   <link rel="stylesheet" href="../tokens.css?v=1790272371081">
-  <link rel="stylesheet" href="../styles.css?v=1790272387691">
+  <link rel="stylesheet" href="../styles.css?v=1790356174842">
 </head>
 <body>
   <a href="#main-content" class="skip-link" data-i18n="app.skipToContent">跳转到主内容</a>
@@ -516,7 +516,7 @@
       </section>
     </main>
     <div class="workspace-feedback">
-      <button class="workspace-feedback-copy" id="copyFeedbackEmailBtn" type="button" data-i18n="app.feedback">去反馈</button>
+      <button class="workspace-feedback-copy" id="openFeedbackDialogBtn" type="button" data-i18n="app.feedback">去反馈</button>
     </div>
   </div>
 
@@ -542,6 +542,31 @@
       <div class="dialog-footer">
         <button id="cancelSettingsBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
         <button id="saveSettingsBtn" class="btn btn-primary" type="button" data-i18n="common.save">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="feedbackDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackDialogTitle">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h3 class="dialog-title" id="feedbackDialogTitle" data-i18n="feedback.dialogTitle">反馈问题</h3>
+        <button id="closeFeedbackBtn" class="dialog-close" type="button" aria-label="关闭反馈" data-i18n-aria-label="common.closeFeedback">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-group">
+          <label class="form-label" for="feedbackContentInput" data-i18n="feedback.contentLabel">问题描述</label>
+          <textarea id="feedbackContentInput" class="form-input form-textarea" rows="5" maxlength="2000" data-i18n-placeholder="feedback.contentPlaceholder" placeholder="请描述你遇到的问题或建议，越具体越容易定位。"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="feedbackContactInput" data-i18n="feedback.contactLabel">联系方式（选填）</label>
+          <input type="email" id="feedbackContactInput" class="form-input" maxlength="120" autocomplete="email" data-i18n-placeholder="feedback.contactPlaceholder" placeholder="you@example.com">
+          <p class="form-help" data-i18n="feedback.contactHelp">留下邮箱方便我们回复你。</p>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button id="feedbackCopyEmailBtn" class="btn btn-ghost dialog-footer-secondary" type="button" data-i18n="feedback.copyEmail">复制邮箱</button>
+        <button id="cancelFeedbackBtn" class="btn btn-ghost" type="button" data-i18n="common.cancel">取消</button>
+        <button id="feedbackSubmitBtn" class="btn btn-primary" type="button" data-i18n="feedback.submit">提交反馈</button>
       </div>
     </div>
   </div>
@@ -595,8 +620,8 @@
     });
   </script>
   <script src="mock-chrome.js?v=1790271717544"></script>
-  <script src="../i18n.js?v=1790273313606"></script>
+  <script src="../i18n.js?v=1790356163327"></script>
   <script src="../utils.js?v=1790273062753"></script>
-  <script src="../profile.js?v=1790273079180"></script>
+  <script src="../profile.js?v=1790356144448"></script>
 </body>
 </html>

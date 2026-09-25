@@ -15,6 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
     closeSettingsBtn: document.getElementById('closeSettingsBtn'),
     cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
     saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+    feedbackDialog: document.getElementById('feedbackDialog'),
+    closeFeedbackBtn: document.getElementById('closeFeedbackBtn'),
+    cancelFeedbackBtn: document.getElementById('cancelFeedbackBtn'),
+    feedbackSubmitBtn: document.getElementById('feedbackSubmitBtn'),
+    feedbackCopyEmailBtn: document.getElementById('feedbackCopyEmailBtn'),
+    feedbackContentInput: document.getElementById('feedbackContentInput'),
+    feedbackContactInput: document.getElementById('feedbackContactInput'),
     timeoutValue: document.getElementById('timeoutValue'),
     timeoutDisplay: document.getElementById('timeoutDisplay'),
     totalCount: document.getElementById('totalCount'),
@@ -87,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aiActionSummary: document.getElementById('aiActionSummary'),
     aiActionList: document.getElementById('aiActionList'),
     aiPreviewCard: document.getElementById('aiPreviewCard'),
-    copyFeedbackEmailBtn: document.getElementById('copyFeedbackEmailBtn'),
+    openFeedbackDialogBtn: document.getElementById('openFeedbackDialogBtn'),
     undoBanner: document.getElementById('undoBanner'),
     undoMessage: document.getElementById('undoMessage'),
     undoActionBtn: document.getElementById('undoActionBtn'),
@@ -145,7 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     CONCURRENCY: 8,
     BATCH_SIZE: 24,
     BATCH_DELAY_MS: 450,
-    AI_ENDPOINT_DEFAULT: 'https://api.dogclaw.top/ai/api/bookmarks/plan'
+    AI_ENDPOINT_DEFAULT: 'https://api.dogclaw.top/ai/api/bookmarks/plan',
+    FEEDBACK_ENDPOINT_DEFAULT: 'https://api.dogclaw.top/ai/api/feedback',
+    FEEDBACK_TIMEOUT_MS: 15000
   };
 
   const LEGACY_AI_ENDPOINTS = new Set([
@@ -293,6 +302,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    ui.openFeedbackDialogBtn?.addEventListener('click', showFeedbackDialog);
+    ui.closeFeedbackBtn?.addEventListener('click', hideFeedbackDialog);
+    ui.cancelFeedbackBtn?.addEventListener('click', hideFeedbackDialog);
+    ui.feedbackSubmitBtn?.addEventListener('click', submitFeedback);
+    ui.feedbackCopyEmailBtn?.addEventListener('click', copyFeedbackEmail);
+    ui.feedbackDialog?.addEventListener('click', (event) => {
+      if (event.target === ui.feedbackDialog) {
+        hideFeedbackDialog();
+      }
+    });
+
     ui.startScanBtn.addEventListener('click', startQuickScan);
     ui.pauseBtn.addEventListener('click', togglePauseScan);
     ui.stopBtn.addEventListener('click', stopScan);
@@ -388,6 +408,10 @@ document.addEventListener('DOMContentLoaded', () => {
         hideSettingsDialog();
         return;
       }
+      if (ui.feedbackDialog && !ui.feedbackDialog.classList.contains('hidden')) {
+        hideFeedbackDialog();
+        return;
+      }
       if (!ui.moveFolderDialog.classList.contains('hidden')) {
         hideMoveFolderDialog();
       }
@@ -406,7 +430,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.undoAiPlanBtn?.addEventListener('click', undoLastAiPlanApplication);
     ui.aiActionList?.addEventListener('click', handleAiActionListClick);
     ui.aiHistoryList?.addEventListener('click', handleAiHistoryClick);
-    ui.copyFeedbackEmailBtn?.addEventListener('click', copyFeedbackEmail);
     ui.undoActionBtn.addEventListener('click', undoLastAction);
     ui.copyPortraitSummaryBtn?.addEventListener('click', copyPortraitSummary);
     ui.portraitOpenScanBtn?.addEventListener('click', () => switchTab('scan'));
@@ -595,13 +618,93 @@ document.addEventListener('DOMContentLoaded', () => {
   const settleConfirmDialog = confirmController.settle;
   const isConfirmDialogOpen = confirmController.isOpen;
 
+  // ---- 反馈：弹窗表单提交到后端，复制邮箱保留为提交失败时的兜底
+  const FEEDBACK_EMAIL = 'a1330661071@gmail.com';
+
   async function copyFeedbackEmail() {
-    const email = 'a1330661071@gmail.com';
     try {
-      await navigator.clipboard.writeText(email);
+      await navigator.clipboard.writeText(FEEDBACK_EMAIL);
       showToast(t('toast.feedbackCopied'), 'success');
     } catch (error) {
       showToast(t('toast.feedbackCopyFailed'), 'warning');
+    }
+  }
+
+  function showFeedbackDialog() {
+    rememberDialogFocus();
+    ui.feedbackDialog.classList.remove('hidden');
+    requestAnimationFrame(() => ui.feedbackDialog.classList.add('show'));
+    ui.feedbackContentInput?.focus();
+  }
+
+  function hideFeedbackDialog() {
+    ui.feedbackDialog.classList.remove('show');
+    setTimeout(() => ui.feedbackDialog.classList.add('hidden'), DIALOG_HIDE_DELAY_MS);
+    restoreDialogFocus();
+  }
+
+  function getFeedbackEndpoint() {
+    // 自定义 AI 端点且以 /bookmarks/plan 结尾时同源派生；否则回退默认地址
+    const planEndpoint = getAiEndpoint();
+    if (planEndpoint && /\/bookmarks\/plan$/.test(planEndpoint)) {
+      return planEndpoint.replace(/\/bookmarks\/plan$/, '/feedback');
+    }
+    return CONFIG.FEEDBACK_ENDPOINT_DEFAULT;
+  }
+
+  async function submitFeedback() {
+    if (ui.feedbackSubmitBtn.disabled) {
+      return;
+    }
+    const content = ui.feedbackContentInput.value.trim();
+    if (!content) {
+      showToast(t('toast.feedbackContentRequired'), 'warning');
+      ui.feedbackContentInput.focus();
+      return;
+    }
+    const contact = ui.feedbackContactInput.value.trim();
+    if (contact && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
+      showToast(t('toast.feedbackContactInvalid'), 'warning');
+      ui.feedbackContactInput.focus();
+      return;
+    }
+
+    ui.feedbackSubmitBtn.disabled = true;
+    ui.feedbackSubmitBtn.textContent = t('feedback.submitting');
+    try {
+      const response = await fetchAiWithTimeout(getFeedbackEndpoint(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: state.aiClientId,
+          content,
+          contact: contact || null,
+          locale: window.BK_I18N.getLocale(),
+          appVersion: chrome.runtime?.getManifest?.()?.version || null
+        })
+      }, CONFIG.FEEDBACK_TIMEOUT_MS);
+
+      if (!response.ok) {
+        let detail = null;
+        try {
+          detail = await response.json();
+        } catch (error) {}
+        if (response.status === 429 && detail?.detail?.code === 'FEEDBACK_LIMIT_EXCEEDED') {
+          showToast(t('toast.feedbackLimit'), 'warning');
+          return;
+        }
+        throw new Error(detail?.detail?.message || `HTTP ${response.status}`);
+      }
+
+      ui.feedbackContentInput.value = '';
+      ui.feedbackContactInput.value = '';
+      hideFeedbackDialog();
+      showToast(t('toast.feedbackSent'), 'success');
+    } catch (error) {
+      showToast(t('toast.feedbackFailed'), 'error');
+    } finally {
+      ui.feedbackSubmitBtn.disabled = false;
+      ui.feedbackSubmitBtn.textContent = t('feedback.submit');
     }
   }
 
