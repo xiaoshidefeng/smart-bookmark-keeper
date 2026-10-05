@@ -1218,8 +1218,6 @@ a:hover {
   color: var(--text-muted);
 }
 
-}
-
 /* ========================================
    Utility Classes
    ======================================== */
@@ -2668,6 +2666,33 @@ a:hover {
   background: linear-gradient(180deg, rgba(255, 253, 247, 1) 0%, rgba(255, 248, 234, 1) 100%);
   border-color: rgba(217, 144, 26, 0.24);
   color: var(--color-accent-800);
+}
+
+.ai-preview-footer {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+#applyAiPlanBtn.is-done,
+#applyAiPlanBtnFooter.is-done {
+  color: var(--color-success);
+}
+
+.btn-primary.is-attention {
+  animation: ai-apply-pulse 1.5s ease-out 2;
+}
+
+@keyframes ai-apply-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(var(--color-primary-rgb), 0);
+  }
 }
 
 .ai-warning-list,
@@ -4836,4 +4861,483 @@ a:hover {
 
 .undo-banner:not(.hidden) {
   animation: undoBannerIn var(--duration-normal) var(--ease-out-quart);
+}
+
+/* ========================================
+   Mascot & Motion — 像素小管家机器人 + 印章 + 列表反馈
+   （原创形象；效果同时受 prefers-reduced-motion 全局开关与 .ui-motion-off 控制）
+   ======================================== */
+
+/* 印章与震动需要定位上下文 */
+.scan-progress-card,
+.ai-card {
+  position: relative;
+}
+
+/* ---- 舞台：环形进度下方的行走轨道 ---- */
+.mascot-stage {
+  position: relative;
+  width: 220px;
+  height: 64px;
+  margin-top: var(--space-sm);
+  cursor: pointer;
+}
+
+.mascot-track {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 13px;
+  border-top: 2px dashed rgba(var(--color-primary-rgb), 0.28);
+}
+
+.mascot-move {
+  position: absolute;
+  inset: 0;
+  transform: translateX(var(--mascot-x, 50%));
+  transition: transform 0.8s var(--ease-smooth);
+  will-change: transform;
+}
+
+.mascot-svg {
+  position: absolute;
+  left: 0;
+  bottom: 7px;
+  width: 48px;
+  height: 51px;
+  transform: translateX(-50%);
+  overflow: visible;
+}
+
+.mascot-stage[data-facing='left'] .mascot-svg {
+  transform: translateX(-50%) scaleX(-1);
+}
+
+/* ---- 部件配色（token 单源，不在 SVG 内写色值） ---- */
+.mascot-part-body { fill: var(--color-primary-400); }
+.mascot-part-screen { fill: var(--color-primary-50); }
+.mascot-part-limb { fill: var(--color-primary-500); }
+.mascot-part-leg { fill: var(--color-primary-700); }
+.mascot-part-collar { fill: var(--color-primary-700); }
+.mascot-part-knob { fill: var(--color-accent-500); }
+.mascot-part-antenna { fill: var(--color-primary-700); }
+.mascot-antenna-tip { fill: var(--color-accent-400); }
+.mascot-part-eye { fill: var(--text-primary); }
+.mascot-shadow { fill: var(--color-mascot-shadow); }
+
+/* SVG 部件动画需要以自身包围盒为坐标系 */
+.mascot-robot,
+.mascot-body,
+.mascot-eyes,
+.mascot-eyes-normal,
+.mascot-antenna-tip,
+.mascot-arm,
+.mascot-leg {
+  transform-box: fill-box;
+}
+
+.mascot-robot,
+.mascot-eyes-normal,
+.mascot-antenna-tip {
+  transform-origin: center;
+}
+
+.mascot-body {
+  transform-origin: center bottom;
+}
+
+/* 腿/臂绕顶端（髋/肩）摆动 */
+.mascot-leg,
+.mascot-arm {
+  transform-origin: center top;
+}
+
+/* ---- 眼型切换：默认 normal，happy/sleepy 按状态或变体显隐 ---- */
+.mascot-eyes-happy,
+.mascot-eyes-sleepy {
+  display: none;
+}
+
+.mascot-stage[data-state='success'] .mascot-eyes-normal,
+.mascot-stage[data-state='paused'] .mascot-eyes-normal {
+  display: none;
+}
+
+.mascot-stage[data-state='success'] .mascot-eyes-happy,
+.mascot-stage[data-state='paused'] .mascot-eyes-sleepy {
+  display: block;
+}
+
+.mascot-mini[data-variant='sleep'] .mascot-eyes-normal {
+  display: none;
+}
+
+.mascot-mini[data-variant='sleep'] .mascot-eyes-sleepy {
+  display: block;
+}
+
+/* ---- 瞳孔跟随（JS 写入 --eye-dx/--eye-dy，0.5px 量化） ---- */
+.mascot-eyes {
+  transform: translate(var(--eye-dx, 0px), var(--eye-dy, 0px));
+  transition: transform 0.25s var(--ease-smooth);
+}
+
+/* ---- idle：呼吸 + 眨眼 ---- */
+@keyframes mascotBreathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.03); }
+}
+
+@keyframes mascotBlink {
+  0%, 91%, 100% { transform: scaleY(1); }
+  94%, 96% { transform: scaleY(0.12); }
+}
+
+.mascot-stage[data-state='idle'] .mascot-body {
+  animation: mascotBreathe 3.2s var(--ease-smooth) infinite;
+}
+
+.mascot-stage[data-state='idle'] .mascot-eyes-normal {
+  animation: mascotBlink 4.6s var(--ease-smooth) infinite;
+}
+
+/* ---- working：沿真实进度行走（双腿交替 + 身体起伏 + 天线闪烁） ---- */
+@keyframes mascotStepOut {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-17deg); }
+}
+
+@keyframes mascotStepIn {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(17deg); }
+}
+
+@keyframes mascotBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+
+@keyframes mascotTipSignal {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.mascot-stage[data-state='working'] .mascot-leg-l {
+  animation: mascotStepOut 0.52s var(--ease-smooth) infinite;
+}
+
+.mascot-stage[data-state='working'] .mascot-leg-r {
+  animation: mascotStepIn 0.52s var(--ease-smooth) infinite;
+}
+
+.mascot-stage[data-state='working'] .mascot-arm-l {
+  animation: mascotStepIn 0.52s var(--ease-smooth) infinite;
+}
+
+.mascot-stage[data-state='working'] .mascot-arm-r {
+  animation: mascotStepOut 0.52s var(--ease-smooth) infinite;
+}
+
+.mascot-stage[data-state='working'] .mascot-body {
+  animation: mascotBob 0.52s var(--ease-smooth) infinite;
+}
+
+.mascot-stage[data-state='working'] .mascot-antenna-tip {
+  animation: mascotTipSignal 0.9s steps(2, jump-none) infinite;
+}
+
+/* ---- paused：整体压扁 + 困倦眼 + 天线熄灭 ---- */
+.mascot-stage[data-state='paused'] .mascot-robot {
+  transform: scaleY(0.93) translateY(0.8px);
+  transform-origin: center bottom;
+}
+
+.mascot-stage[data-state='paused'] .mascot-antenna-tip {
+  opacity: 0.3;
+}
+
+/* ---- success：开心眼 + 原地双跳 ---- */
+@keyframes mascotDoubleHop {
+  0% { transform: translateY(0); }
+  14% { transform: translateY(-6px); }
+  30% { transform: translateY(0); }
+  44% { transform: translateY(0); }
+  58% { transform: translateY(-3.5px); }
+  74% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+.mascot-stage[data-state='success'] .mascot-robot {
+  animation: mascotDoubleHop 1.3s var(--ease-smooth) 2;
+}
+
+/* ---- 清洁动效：手持扫帚边走边扫 + 尘埃 + 轨道清洁层 ---- */
+.mascot-broom,
+.mascot-dust {
+  display: none;
+}
+
+.mascot-broom {
+  transform-box: fill-box;
+  transform-origin: 50% 8%; /* 绕握把顶端摆动 */
+}
+
+.mascot-part-broom-handle { fill: var(--color-primary-700); }
+.mascot-part-broom-band { fill: var(--color-accent-500); }
+.mascot-part-broom-bristle { fill: var(--color-accent-400); }
+
+/* 扫帚 scrub 频率 = 2 个步伐周期，与走路 bob 形成节拍差更像扫地 */
+@keyframes mascotSweep {
+  0%, 100% { transform: rotate(9deg); }
+  50% { transform: rotate(-14deg); }
+}
+
+.mascot-stage[data-state='working'] .mascot-broom {
+  display: block;
+  animation: mascotSweep 1.04s var(--ease-smooth) infinite;
+}
+
+.dust-p {
+  fill: var(--color-accent-200);
+  transform-box: fill-box;
+}
+
+/* 尘埃向机器人身后上方飘散（.mascot-svg 翻面时自动跟随朝向） */
+@keyframes dustPuff {
+  0% { opacity: 0; transform: translate(0, 0); }
+  22% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-2.4px, -2.8px); }
+}
+
+.mascot-stage[data-state='working'] .mascot-dust {
+  display: block;
+}
+
+.mascot-stage[data-state='working'] .dust-p1 { animation: dustPuff 1.05s var(--ease-smooth) infinite 0s; }
+.mascot-stage[data-state='working'] .dust-p2 { animation: dustPuff 1.05s var(--ease-smooth) infinite 0.35s; }
+.mascot-stage[data-state='working'] .dust-p3 { animation: dustPuff 1.05s var(--ease-smooth) infinite 0.7s; }
+
+/* 轨道清洁层：走过的部分虚线变实线，clip 跟随真实进度；只在 working/success 显示 */
+.mascot-track-clean {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 13px;
+  border-top: 2px solid var(--color-primary-500);
+  clip-path: inset(0 calc(100% - var(--mascot-x, 50%)) 0 0);
+  opacity: 0;
+  transition: clip-path 0.8s var(--ease-smooth), opacity var(--duration-normal) var(--ease-smooth);
+}
+
+.mascot-stage[data-state='working'] .mascot-track-clean,
+.mascot-stage[data-state='success'] .mascot-track-clean {
+  opacity: 1;
+}
+
+/* ---- 点击空翻 / 失效踉跄（JS 临时类） ---- */
+@keyframes mascotFlip {
+  0% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-7px) rotate(140deg); }
+  70% { transform: translateY(-2px) rotate(320deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+
+.mascot-robot.is-flip {
+  animation: mascotFlip 0.65s var(--ease-smooth);
+}
+
+@keyframes mascotStagger {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-1.2px) rotate(-5deg); }
+  55% { transform: translateX(1.2px) rotate(4deg); }
+  80% { transform: translateX(-0.6px) rotate(-2deg); }
+}
+
+@keyframes mascotDizzyEyes {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(16deg); }
+  60% { transform: rotate(-14deg); }
+}
+
+.mascot-robot.is-dizzy {
+  animation: mascotStagger 0.6s var(--ease-smooth);
+}
+
+.mascot-stage:has(.mascot-robot.is-dizzy) .mascot-eyes-normal {
+  animation: mascotDizzyEyes 0.6s var(--ease-smooth);
+}
+
+/* ---- 空状态迷你版 ---- */
+.mascot-mini {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-sm);
+}
+
+.mascot-mini .mascot-svg {
+  position: static;
+  width: 56px;
+  height: 60px;
+  transform: none;
+}
+
+.mascot-mini .mascot-body {
+  animation: mascotBreathe 3.2s var(--ease-smooth) infinite;
+}
+
+/* ---- 「印章」庆祝 ---- */
+.motion-stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  padding: 0.18em 0.55em;
+  border: 3px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--color-success);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-8deg) scale(1.6);
+}
+
+.motion-stamp.show {
+  animation: stampIn 0.45s var(--ease-spring) forwards;
+}
+
+.motion-stamp.is-gone {
+  animation: stampOut 0.4s var(--ease-smooth) forwards;
+}
+
+@keyframes stampIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.6); }
+  55% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(0.94); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); }
+}
+
+@keyframes stampOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translate(-50%, -52%) rotate(-8deg) scale(1.04); }
+}
+
+@keyframes cardQuake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(1.5px); }
+  40% { transform: translateX(-1.5px); }
+  60% { transform: translateX(1px); }
+  80% { transform: translateX(-1px); }
+}
+
+.scan-progress-card.is-stamped,
+.ai-card.is-stamped {
+  animation: cardQuake 0.3s var(--ease-smooth);
+}
+
+/* ---- 列表交错入场（--enter-i 由 JS 写入，封顶 12 行） ---- */
+@keyframes rowEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.scan-result-item,
+.ai-action-item {
+  animation: rowEnter var(--duration-entrance) var(--ease-out-quart) both;
+  animation-delay: calc(var(--enter-i, 0) * 35ms);
+}
+
+/* ---- 删除退场：滑出淡出后再重渲染 ---- */
+@keyframes rowLeave {
+  to { opacity: 0; transform: translateX(16px) scale(0.97); }
+}
+
+.scan-result-item.row-leaving,
+.bookmark-item.row-leaving {
+  animation: rowLeave var(--duration-slow) var(--ease-out-quart) forwards;
+  pointer-events: none;
+}
+
+/* ---- 计数徽章弹跳 / 失效计数卡晃动 / 状态文案淡入 ---- */
+@keyframes badgePop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+.result-pill.badge-pop {
+  animation: badgePop 0.4s var(--ease-spring);
+}
+
+@keyframes statWobble {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-1.6deg) scale(1.02); }
+  60% { transform: rotate(1.4deg); }
+}
+
+.scan-stat.stat-wobble {
+  animation: statWobble 0.45s var(--ease-spring);
+}
+
+@keyframes copySwapIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.scan-card-copy.text-swap {
+  animation: copySwapIn var(--duration-normal) var(--ease-out-quart);
+}
+
+/* ---- 设置弹窗：动效开关行 ---- */
+.settings-motion-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.settings-motion-row input[type='checkbox'] {
+  margin-top: 2px;
+  accent-color: var(--color-primary-500);
+}
+
+/* ---- 用户关闭动效：吉祥物静止、印章与入场动效全部停用 ---- */
+body.ui-motion-off .mascot-stage,
+body.ui-motion-off .mascot-stage *,
+body.ui-motion-off .mascot-mini,
+body.ui-motion-off .mascot-mini * {
+  animation: none !important;
+}
+
+body.ui-motion-off .mascot-move,
+body.ui-motion-off .mascot-eyes,
+body.ui-motion-off .mascot-track-clean {
+  transition: none !important;
+}
+
+body.ui-motion-off .motion-stamp {
+  display: none !important;
+}
+
+body.ui-motion-off .scan-result-item,
+body.ui-motion-off .ai-action-item,
+body.ui-motion-off .result-pill.badge-pop,
+body.ui-motion-off .scan-stat.stat-wobble,
+body.ui-motion-off .scan-card-copy.text-swap,
+body.ui-motion-off .scan-progress-card.is-stamped,
+body.ui-motion-off .ai-card.is-stamped,
+body.ui-motion-off .btn-primary.is-attention {
+  animation: none !important;
+}
+
+body.ui-motion-off .scan-result-item.row-leaving,
+body.ui-motion-off .bookmark-item.row-leaving {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }

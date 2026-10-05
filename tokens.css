@@ -66,6 +66,9 @@
   --shadow-xl: 0 18px 44px rgba(15, 23, 42, 0.1);
   --shadow-panel: 0 12px 28px rgba(15, 23, 42, 0.05);
 
+  /* 吉祥物（mascot.js 像素小管家）落地投影，同蓝黑基调 */
+  --color-mascot-shadow: rgba(15, 23, 42, 0.22);
+
   /* Spacing Scale - Musical rhythm (4px base) */
   --space-xs: 0.25rem;    /* 4px */
   --space-sm: 0.5rem;     /* 8px */

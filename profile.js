@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     feedbackContentInput: document.getElementById('feedbackContentInput'),
     feedbackContactInput: document.getElementById('feedbackContactInput'),
     timeoutValue: document.getElementById('timeoutValue'),
+    uiMotionToggle: document.getElementById('uiMotionToggle'),
     timeoutDisplay: document.getElementById('timeoutDisplay'),
     totalCount: document.getElementById('totalCount'),
     invalidCount: document.getElementById('invalidCount'),
@@ -82,6 +83,8 @@ document.addEventListener('DOMContentLoaded', () => {
     aiInstructionInput: document.getElementById('aiInstructionInput'),
     generateAiPlanBtn: document.getElementById('generateAiPlanBtn'),
     applyAiPlanBtn: document.getElementById('applyAiPlanBtn'),
+    applyAiPlanBtnFooter: document.getElementById('applyAiPlanBtnFooter'),
+    aiPreviewFooter: document.getElementById('aiPreviewFooter'),
     undoAiPlanBtn: document.getElementById('undoAiPlanBtn'),
     aiPlanStatus: document.getElementById('aiPlanStatus'),
     aiPlanActionCount: document.getElementById('aiPlanActionCount'),
@@ -187,8 +190,82 @@ document.addEventListener('DOMContentLoaded', () => {
     escapeHtml, getDomain, isScannable, sendScanMessage
   } = window.BK_UTILS;
 
+  // ===== 动效辅助：统一入口，设置开关与系统减弱动态效果在此汇流 =====
+
+  function motionOn() {
+    return state.uiMotion !== false &&
+      !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function initMascot() {
+    if (!window.BK_MASCOT) {
+      return;
+    }
+    window.BK_MASCOT.init({
+      container: ui.scanSection.querySelector('.scan-progress-visual'),
+      getMotionEnabled: () => state.uiMotion !== false
+    });
+  }
+
+  // 状态文案切换：重触发一次淡入，替代硬跳
+  function setScanStatus(text) {
+    ui.scanStatusText.textContent = text;
+    if (!motionOn()) {
+      return;
+    }
+    ui.scanStatusText.classList.remove('text-swap');
+    void ui.scanStatusText.offsetWidth;
+    ui.scanStatusText.classList.add('text-swap');
+  }
+
+  // 删除退场：受影响行先滑出淡出，再由调用方执行真正的删除与重渲染
+  async function animateRowsLeaving(ids) {
+    if (!motionOn() || ids.length === 0) {
+      return;
+    }
+    const idSet = new Set(ids);
+    const rows = document.querySelectorAll('.scan-result-item[data-item-id], .bookmark-item[data-bookmark-id]');
+    const leaving = Array.from(rows).filter((row) => idSet.has(row.dataset.itemId || row.dataset.bookmarkId));
+    if (leaving.length === 0) {
+      return;
+    }
+    leaving.forEach((row) => row.classList.add('row-leaving'));
+    await new Promise((resolve) => setTimeout(resolve, 230));
+  }
+
+  // 计数徽章弹跳（删除完成后）
+  function popCountBadges() {
+    if (!motionOn()) {
+      return;
+    }
+    [ui.invalidCountBadge, ui.emptyFolderCountBadge].forEach((badge) => {
+      if (!badge) {
+        return;
+      }
+      badge.classList.remove('badge-pop');
+      void badge.offsetWidth;
+      badge.classList.add('badge-pop');
+    });
+  }
+
+  // 扫描中发现新失效书签：小管家踉跄 + 失效计数卡晃动
+  function reactToInvalidFound() {
+    if (!motionOn()) {
+      return;
+    }
+    window.BK_MASCOT?.notifyInvalidFound();
+    const statCard = ui.scanInvalidCount.closest('.scan-stat');
+    if (!statCard) {
+      return;
+    }
+    statCard.classList.remove('stat-wobble');
+    void statCard.offsetWidth;
+    statCard.classList.add('stat-wobble');
+  }
+
   const state = {
     activeTab: 'scan',
+    uiMotion: true,
     tree: [],
     rootNodes: [],
     bookmarkMap: new Map(),
@@ -270,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadSettings();
     await restoreUiState();
     applyTranslations();
+    initMascot();
     applyRestoredManageFilter();
     await loadBookmarks();
     await Promise.all([
@@ -425,6 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ui.generateAiPlanBtn?.addEventListener('click', generateAiPlan);
     ui.applyAiPlanBtn?.addEventListener('click', applyAiPlan);
+    ui.applyAiPlanBtnFooter?.addEventListener('click', applyAiPlan);
     ui.undoAiPlanBtn?.addEventListener('click', undoLastAiPlanApplication);
     ui.aiActionList?.addEventListener('click', handleAiActionListClick);
     ui.aiHistoryList?.addEventListener('click', handleAiHistoryClick);
@@ -466,17 +545,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadSettings() {
-    const result = await new Promise((resolve) => chrome.storage.local.get(['scanTimeout', 'manageDragTipDismissed', 'aiPlanHistory', 'aiClientId', 'locale', 'aiEndpoint'], resolve));
+    const result = await new Promise((resolve) => chrome.storage.local.get(['scanTimeout', 'manageDragTipDismissed', 'aiPlanHistory', 'aiClientId', 'locale', 'aiEndpoint', 'uiMotion'], resolve));
     CONFIG.TIMEOUT = result.scanTimeout || 15;
     state.manageDragTipDismissed = !!result.manageDragTipDismissed;
     state.aiHistory = Array.isArray(result.aiPlanHistory) ? result.aiPlanHistory : [];
     state.aiEndpoint = normalizeAiEndpoint(result.aiEndpoint);
     state.aiClientId = result.aiClientId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `client-${Date.now()}`);
     state.locale = result.locale === 'en-US' ? 'en-US' : 'zh-CN';
+    state.uiMotion = result.uiMotion !== false;
     window.BK_I18N.setLocale(state.locale);
     state.aiActiveHistoryId = null;
     ui.timeoutValue.value = String(CONFIG.TIMEOUT);
     ui.timeoutDisplay.textContent = String(CONFIG.TIMEOUT);
+    if (ui.uiMotionToggle) {
+      ui.uiMotionToggle.checked = state.uiMotion;
+    }
+    applyUiMotion();
     if (!result.aiClientId) {
       await new Promise((resolve) => chrome.storage.local.set({ aiClientId: state.aiClientId }, resolve));
     }
@@ -485,10 +569,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function applyUiMotion() {
+    document.body.classList.toggle('ui-motion-off', state.uiMotion === false);
+    window.BK_MASCOT?.setMotionEnabled(state.uiMotion !== false);
+  }
+
   async function saveSettings() {
     CONFIG.TIMEOUT = parseInt(ui.timeoutValue.value, 10);
+    state.uiMotion = ui.uiMotionToggle ? ui.uiMotionToggle.checked : true;
+    applyUiMotion();
     await new Promise((resolve) => chrome.storage.local.set({
-      scanTimeout: CONFIG.TIMEOUT
+      scanTimeout: CONFIG.TIMEOUT,
+      uiMotion: state.uiMotion
     }, resolve));
     hideSettingsDialog();
     await refreshAiUsage();
@@ -1583,7 +1675,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.pauseBtn.classList.add('hidden');
     ui.stopBtn.classList.add('hidden');
     ui.startScanBtn.disabled = true;
-    ui.scanStatusText.textContent = t('scan.scanningNow');
+    setScanStatus(t('scan.scanningNow'));
+    window.BK_MASCOT?.setState('working');
+    window.BK_MASCOT?.setProgress(0);
     ui.scannedCount.textContent = '0';
     ui.scanInvalidCount.textContent = '0';
     ui.scanDuration.textContent = t('scan.durationSec', { s: 0 });
@@ -1596,7 +1690,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!bgState) {
       ui.startScanBtn.disabled = false;
-      ui.scanStatusText.textContent = t('scan.waiting');
+      setScanStatus(t('scan.waiting'));
+      window.BK_MASCOT?.setState('idle');
       showToast(t('scan.startFailed'), 'error');
       return;
     }
@@ -1639,22 +1734,30 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.pauseBtn.classList.remove('hidden');
         ui.stopBtn.classList.remove('hidden');
         ui.pauseBtn.textContent = mirror.isPaused ? t('scan.resume') : t('scan.pause');
-        ui.scanStatusText.textContent = mirror.isPaused ? t('scan.paused') : t('scan.scanningNow');
+        setScanStatus(mirror.isPaused ? t('scan.paused') : t('scan.scanningNow'));
+        window.BK_MASCOT?.setState(mirror.isPaused ? 'paused' : 'working');
         mirror.timer = setInterval(updateScanDuration, 1000);
         updateScanDuration();
         renderScanResults();
       } else if (mirror.isPaused !== (bg.status === 'paused')) {
         mirror.isPaused = bg.status === 'paused';
         ui.pauseBtn.textContent = mirror.isPaused ? t('scan.resume') : t('scan.pause');
-        ui.scanStatusText.textContent = mirror.isPaused ? t('scan.paused') : t('scan.resuming');
+        setScanStatus(mirror.isPaused ? t('scan.paused') : t('scan.resuming'));
+        window.BK_MASCOT?.setState(mirror.isPaused ? 'paused' : 'working');
       }
 
       mirror.total = bg.total;
       mirror.completed = bg.checked;
       mirror.errorCount = bg.errorCount;
-      ui.scannedCount.textContent = String(mirror.completed);
-      ui.scanInvalidCount.textContent = String(bg.invalidCount);
-      updateProgressRing(mirror.total > 0 ? (mirror.completed / mirror.total) * 100 : 0);
+      const prevInvalid = parseInt(ui.scanInvalidCount.textContent, 10) || 0;
+      animateNumber(ui.scannedCount, mirror.completed);
+      animateNumber(ui.scanInvalidCount, bg.invalidCount);
+      if (bg.invalidCount > prevInvalid) {
+        reactToInvalidFound();
+      }
+      const progressPercent = mirror.total > 0 ? (mirror.completed / mirror.total) * 100 : 0;
+      updateProgressRing(progressPercent);
+      window.BK_MASCOT?.setProgress(progressPercent);
       return;
     }
 
@@ -1772,7 +1875,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.pauseBtn.classList.add('hidden');
     ui.stopBtn.classList.add('hidden');
     ui.pauseBtn.textContent = t('scan.pause');
-    ui.scanStatusText.textContent = message;
+    setScanStatus(message);
+    const isSuccess = toastType === 'success';
+    window.BK_MASCOT?.setState(isSuccess ? 'success' : 'idle');
+    if (isSuccess) {
+      window.BK_MASCOT?.stamp({ container: ui.scanSection, text: t('stamp.allClear') });
+    }
     updateProgressRing(state.scanController.total === 0 ? 0 : (state.scanController.completed / state.scanController.total) * 100);
     renderScanResults();
     renderManageTree();
@@ -1828,11 +1936,15 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `${t('scan.lastScanPrefix')}${new Date(state.scanTime).toLocaleString(state.locale)}`
       : t('scan.notStarted');
 
-    renderScanList(ui.invalidLinksList, invalidBookmarks, 'bookmark', invalidBookmarks.length === 0 ? {
-      label: t('scan.startScanNow'),
-      onClick: () => startQuickScan()
-    } : null);
-    renderScanList(ui.emptyFoldersList, state.emptyFolders, 'folder');
+    // 已扫过且无失效：睡觉眼小管家 + 表扬文案；未扫过：行动 CTA
+    const invalidEmptyAction = invalidBookmarks.length === 0 && !state.scanTime
+      ? {
+          label: t('scan.startScanNow'),
+          onClick: () => startQuickScan()
+        }
+      : null;
+    renderScanList(ui.invalidLinksList, invalidBookmarks, 'bookmark', invalidEmptyAction, state.scanTime ? 'sleep' : 'idle');
+    renderScanList(ui.emptyFoldersList, state.emptyFolders, 'folder', null, 'idle');
     updateScanSelectionUi();
   }
 
@@ -1844,28 +1956,34 @@ document.addEventListener('DOMContentLoaded', () => {
       : t('scan.selectAllEmptyFolders');
   }
 
-  function renderScanList(container, items, type, emptyAction = null) {
+  function renderScanList(container, items, type, emptyAction = null, emptyMascot = null) {
+    const mascotMini = emptyMascot && window.BK_MASCOT ? window.BK_MASCOT.buildMiniSvg(emptyMascot) : '';
     if (items.length === 0) {
       if (emptyAction) {
         container.innerHTML = `
           <div class="result-empty-state result-empty-state-cta">
+            ${mascotMini}
             <div>${t('scan.noItems')}</div>
             <button class="btn btn-primary btn-sm" type="button">${escapeHtml(emptyAction.label)}</button>
           </div>`;
         container.querySelector('button')?.addEventListener('click', emptyAction.onClick);
+      } else if (emptyMascot === 'sleep') {
+        container.innerHTML = `<div class="result-empty-state">${mascotMini}<div>${t('scan.emptyHealthy')}</div></div>`;
       } else {
-        container.innerHTML = `<div class="result-empty-state">${t('scan.noItems')}</div>`;
+        container.innerHTML = `<div class="result-empty-state">${mascotMini}${t('scan.noItems')}</div>`;
       }
       return;
     }
 
     container.innerHTML = '';
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       const row = document.createElement('label');
       const isSelected = type === 'bookmark'
         ? state.selectedScanIds.has(item.id)
         : state.selectedEmptyFolderIds.has(item.id);
       row.className = `scan-result-item${isSelected ? ' selected' : ''}`;
+      row.dataset.itemId = item.id;
+      row.style.setProperty('--enter-i', String(Math.min(index, 12)));
       row.innerHTML = `
         <input class="result-checkbox" type="checkbox" ${isSelected ? 'checked' : ''}>
         <div class="scan-result-copy">
@@ -1951,15 +2069,19 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         if (type === 'bookmark') {
+          await animateRowsLeaving([item.id]);
           await removeBookmarksByIds([item.id], true);
           await loadBookmarks();
           await persistScanResults();
           await loadStoredScanResults();
+          popCountBadges();
           showToast(t('scan.invalidBookmarkDeleted'), 'success');
         } else {
           state.selectedEmptyFolderIds.delete(item.id);
+          await animateRowsLeaving([item.id]);
           await removeFoldersByIds([item.id]);
           renderScanResults();
+          popCountBadges();
           showToast(t('scan.emptyFolderDeleted'), 'success');
         }
       });
@@ -2002,10 +2124,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    await animateRowsLeaving(ids);
     await removeBookmarksByIds(ids, true);
     await loadBookmarks();
     await persistScanResults();
     await loadStoredScanResults();
+    popCountBadges();
     showToast(t('scan.invalidDeleted', { n: ids.length }), 'success');
   }
 
@@ -2050,7 +2174,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.bookmarkTree.innerHTML = '';
 
     if (state.rootNodes.length === 0) {
-      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${t('manage.noBookmarks')}</div>`;
+      const mini = window.BK_MASCOT ? window.BK_MASCOT.buildMiniSvg('idle') : '';
+      ui.bookmarkTree.innerHTML = `<div class="empty-tree-state">${mini}<div>${t('manage.noBookmarks')}</div></div>`;
       updateManageToolbar();
       return;
     }
@@ -2069,12 +2194,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (renderedCount === 0) {
       // 有搜索词或筛选时给出清除入口，无匹配时用户不会被卡死
       const hasQuery = Boolean(state.searchTerm) || state.manageFilter !== 'all';
+      const mini = window.BK_MASCOT ? window.BK_MASCOT.buildMiniSvg('idle') : '';
       ui.bookmarkTree.innerHTML = hasQuery
         ? `<div class="empty-tree-state">
+             ${mini}
              <div>${t('manage.noMatchingBookmarks')}</div>
              <button class="btn btn-secondary btn-sm" type="button" data-action="clear-manage-search">${t('manage.clearSearch')}</button>
            </div>`
-        : `<div class="empty-tree-state">${t('manage.noBookmarks')}</div>`;
+        : `<div class="empty-tree-state">${mini}<div>${t('manage.noBookmarks')}</div></div>`;
     } else {
       ui.bookmarkTree.appendChild(fragment);
     }
@@ -3132,16 +3259,51 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAiSummary();
     ui.generateAiPlanBtn.disabled = isBusy || Boolean(state.aiUsageError) || (state.aiUsage?.remaining ?? 1) <= 0;
     ui.generateAiPlanBtn.classList.toggle('is-loading', state.aiPlan.status === 'loading');
+    // 方案待应用时视觉重心让位给「应用方案」，生成按钮退为次按钮，应用完成后流程重启再恢复
+    const hasLivePlan = state.aiPlan.status === 'ready' || state.aiPlan.status === 'applying';
+    ui.generateAiPlanBtn.classList.toggle('btn-primary', !hasLivePlan);
+    ui.generateAiPlanBtn.classList.toggle('btn-secondary', hasLivePlan);
     ui.generateAiPlanBtn.innerHTML = state.aiPlan.status === 'loading'
       ? `<span class="btn-spinner" aria-hidden="true"></span><span>${t('ai.working')}</span>`
       : `<span>${t('ai.generate')}</span>`;
     const canApply = canApplyCurrentAiPlan(validCount);
-    ui.applyAiPlanBtn.disabled = !canApply || isBusy;
+    syncApplyButtons(canApply, validCount);
     renderAiUndoButton();
 
     renderAiWarnings();
     renderAiActions();
     renderAiHistory();
+  }
+
+  function syncApplyButtons(canApply, validCount) {
+    const buttons = [ui.applyAiPlanBtn, ui.applyAiPlanBtnFooter].filter(Boolean);
+    if (!buttons.length) {
+      return;
+    }
+    const status = state.aiPlan.status;
+    let escalated = false;
+    let tone = '';
+    let label = t('ai.apply');
+    if (status === 'applying') {
+      escalated = true;
+      label = t('ai.applying');
+    } else if (canApply) {
+      escalated = true;
+      tone = 'is-attention';
+      label = t('ai.applyReady', { n: validCount });
+    } else if (status === 'applied') {
+      tone = 'is-done';
+      label = t('ai.appliedDone');
+    }
+    buttons.forEach((button) => {
+      button.disabled = !canApply;
+      button.classList.toggle('btn-primary', escalated);
+      button.classList.toggle('btn-secondary', !escalated);
+      button.classList.toggle('is-attention', tone === 'is-attention');
+      button.classList.toggle('is-done', tone === 'is-done');
+      button.textContent = label;
+    });
+    ui.aiPreviewFooter?.classList.toggle('hidden', !['ready', 'applying', 'applied'].includes(status));
   }
 
   function getAiUsageDescription() {
@@ -3544,12 +3706,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const completed = state.aiPlan.status === 'applied';
     const readonly = !completed && state.aiPlan.source === 'history' && !canApplyCurrentAiPlan(1);
 
+    let enterIndex = 0;
     groups.forEach((group) => {
       const expanded = state.aiExpandedActionGroups.has(group.key);
       const visibleItems = expanded ? group.items : group.items.slice(0, 4);
       const hiddenCount = Math.max(0, group.items.length - visibleItems.length);
       const section = document.createElement('section');
       section.className = 'ai-action-group';
+      const itemBase = enterIndex;
       section.innerHTML = `
         <div class="ai-action-group-header">
           <div>
@@ -3559,9 +3723,10 @@ document.addEventListener('DOMContentLoaded', () => {
           ${group.items.length > 4 ? `<button class="btn btn-ghost btn-sm ai-action-group-toggle" type="button" data-ai-group-toggle="${escapeHtml(group.key)}">${expanded ? t('ai.collapse') : t('ai.showMore', { n: hiddenCount })}</button>` : ''}
         </div>
         <div class="ai-action-group-list">
-          ${visibleItems.map((item) => renderAiActionItem(item, { completed, readonly })).join('')}
+          ${visibleItems.map((item, index) => renderAiActionItem(item, { completed, readonly, enterIndex: itemBase + index })).join('')}
         </div>
       `;
+      enterIndex += visibleItems.length;
       ui.aiActionList.appendChild(section);
     });
   }
@@ -3571,7 +3736,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const completed = context.completed;
     const readonly = context.readonly;
     return `
-      <article class="ai-action-item status-${item.status}${dismissed ? ' is-dismissed' : ''}${completed ? ' is-complete' : ''}${readonly ? ' is-readonly' : ''}">
+      <article class="ai-action-item status-${item.status}${dismissed ? ' is-dismissed' : ''}${completed ? ' is-complete' : ''}${readonly ? ' is-readonly' : ''}" style="--enter-i: ${Math.min(context.enterIndex || 0, 12)}">
         <div class="ai-action-copy">
           <div class="ai-action-title">${escapeHtml(item.title)}</div>
           <div class="ai-action-meta">${escapeHtml(item.description)}</div>
@@ -4237,6 +4402,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       renderAiPlan();
       focusAiPreviewResults();
+      window.BK_MASCOT?.stamp({ container: ui.aiPreviewCard, text: t('stamp.aiDone') });
       showToast(t('toast.aiPlanApplied'), 'success');
     } catch (error) {
       state.aiPlan.status = 'error';
@@ -4594,6 +4760,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    await animateRowsLeaving(ids);
     await removeBookmarksByIds(ids, true);
     await loadBookmarks();
     await loadStoredScanResults();
@@ -5567,8 +5734,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    await animateRowsLeaving(ids);
     await removeFoldersByIds(ids);
     renderScanResults();
+    popCountBadges();
     showToast(t('manage.emptyFoldersDeleted', { n: ids.length }), 'success');
   }
 

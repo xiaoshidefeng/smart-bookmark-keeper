@@ -358,4 +358,50 @@
     resetLocalStore: () => { window.localStorage.removeItem(LS_KEY); },
     emitBookmarkEvent
   };
+
+  // ---- AI 服务 mock：拦截 /bookmarks/plan 与 /bookmarks/usage，离线走通「生成→应用→撤销」全流程。
+  // 动作引用的 id 在请求时从 payload.context 里取真实种子数据，保证能通过 validateAiActions 校验。
+  const realFetch = window.fetch ? window.fetch.bind(window) : null;
+  const aiJsonResponse = (data) => new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  window.fetch = async function mockFetch(input, init) {
+    const url = typeof input === 'string' ? input : input?.url || '';
+    if (/\/bookmarks\/usage\b/.test(url)) {
+      return aiJsonResponse({ limit: 8, used: 1, remaining: 7, date: new Date().toISOString().slice(0, 10) });
+    }
+    if (/\/bookmarks\/plan\b/.test(url)) {
+      await new Promise((resolve) => setTimeout(resolve, 600)); // 模拟网络延迟，便于观察 loading 态
+      let context = { bookmarks: [], folders: [] };
+      try {
+        context = JSON.parse(init?.body || '{}')?.context || context;
+      } catch (error) { /* body 异常时退回空 context */ }
+      const barFolder = context.folders.find((f) => f.title === '书签栏') || context.folders[0];
+      const parentPath = barFolder?.path?.length ? barFolder.path : ['书签栏'];
+      const bookmarks = context.bookmarks || [];
+      const renameTarget = bookmarks.find((b) => /juejin/i.test(b.url || '')) || bookmarks[0];
+      const moveTargets = [
+        bookmarks.find((b) => /v2ex/i.test(b.url || '')),
+        bookmarks.find((b) => /stackoverflow/i.test(b.url || ''))
+      ].filter(Boolean);
+      return aiJsonResponse({
+        summary: '根据你的诉求，新建「搜索书签」文件夹归集相关书签，并统一个别书签标题。',
+        warnings: [],
+        actions: [
+          { actionId: 'mock-action-1', type: 'create_folder', title: '搜索书签', parentPath },
+          { actionId: 'mock-action-2', type: 'rename_bookmark', bookmarkId: renameTarget?.id, newTitle: '掘金 · 开发者社区' },
+          ...moveTargets.map((b, i) => ({
+            actionId: `mock-action-${3 + i}`,
+            type: 'move_bookmark',
+            bookmarkId: b.id,
+            targetPath: [...parentPath, '搜索书签']
+          }))
+        ]
+      });
+    }
+    return realFetch
+      ? realFetch(input, init)
+      : Promise.reject(new TypeError('Failed to fetch'));
+  };
 })();

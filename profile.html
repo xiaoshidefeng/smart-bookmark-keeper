@@ -472,7 +472,6 @@
             <div class="ai-action-row">
               <button class="btn btn-primary" id="generateAiPlanBtn" type="button" data-i18n="ai.generate">AI整理</button>
               <button class="btn btn-secondary" id="applyAiPlanBtn" type="button" disabled data-i18n="ai.apply">应用方案</button>
-              <button class="btn btn-secondary hidden" id="undoAiPlanBtn" type="button" data-i18n="ai.undoLatest">撤销最近一次应用</button>
             </div>
           </article>
           <article class="ai-card">
@@ -511,6 +510,10 @@
             </div>
             <div class="ai-action-summary" id="aiActionSummary"></div>
             <div class="ai-action-list" id="aiActionList"></div>
+            <div class="ai-preview-footer hidden" id="aiPreviewFooter">
+              <button class="btn btn-secondary" id="applyAiPlanBtnFooter" type="button" disabled data-i18n="ai.apply">应用方案</button>
+              <button class="btn btn-secondary hidden" id="undoAiPlanBtn" type="button" data-i18n="ai.undoLatest">撤销最近一次应用</button>
+            </div>
           </article>
         </section>
       </section>
@@ -537,6 +540,13 @@
             </div>
           </div>
           <p class="form-help" id="timeoutDescription" data-i18n="scan.timeoutHelp">网络较差建议调到 15-20 秒，链接很多时可适当缩短。</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="uiMotionToggle" data-i18n="settings.motionLabel">界面动效</label>
+          <label class="settings-motion-row">
+            <input type="checkbox" id="uiMotionToggle" checked>
+            <span data-i18n="settings.motionHelp">关闭后小管家保持静止，不播放印章与列表入场动效。</span>
+          </label>
         </div>
       </div>
       <div class="dialog-footer">
@@ -609,6 +619,7 @@
 
   <script src="i18n.js"></script>
   <script src="utils.js"></script>
+  <script src="mascot.js"></script>
   <script src="profile.js"></script>
 </body>
 </html>
