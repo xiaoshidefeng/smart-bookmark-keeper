@@ -254,12 +254,26 @@
       const n = findAndIndex(id);
       const parent = findAndIndex(dest.parentId);
       if (!n || !parent) { mockRuntime._lastError = { message: 'not found' }; setTimeout(() => cb(undefined), 0); return; }
-      removeFromParent(n);
+      const oldParentId = n.parentId;
+      const oldIndex = removeFromParent(n);
       parent.children = parent.children || [];
-      const idx = typeof dest.index === 'number' ? dest.index : parent.children.length;
+      let idx = typeof dest.index === 'number' ? dest.index : parent.children.length;
+      // 对齐真实 Chromium BookmarkModel::Move：同文件夹移动按“移除前”语义解释 index
+      // （index 大于当前位次时内部 index--；index 等于当前位次或位次+1 时视为已在位，
+      // 原样放回、不派发 onMoved、回调照常返回节点）
+      if (oldParentId === parent.id) {
+        if (idx === oldIndex || idx === oldIndex + 1) {
+          parent.children.splice(oldIndex, 0, n);
+          setTimeout(() => cb(clone(n)), 0);
+          return;
+        }
+        if (idx > oldIndex) {
+          idx -= 1;
+        }
+      }
       parent.children.splice(idx, 0, n);
       n.parentId = parent.id;
-      emitBookmarkEvent('onMoved', id, { parentId: n.parentId, index: -1 }, { parentId: parent.id, index: idx });
+      emitBookmarkEvent('onMoved', id, { parentId: oldParentId, index: oldIndex }, { parentId: parent.id, index: idx });
       setTimeout(() => cb(clone(n)), 0);
     },
     remove(id, cb) {

@@ -4608,16 +4608,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (step.type === 'move_bookmark') {
-      const safeIndex = await getSafeBookmarkMoveIndex(step.parentId, step.index);
-      await new Promise((resolve, reject) => {
-        chrome.bookmarks.move(step.bookmarkId, { parentId: step.parentId, index: safeIndex }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
+      await moveBookmarkToPosition(step.bookmarkId, step.parentId, step.index);
     }
   }
 
@@ -4635,24 +4626,6 @@ document.addEventListener('DOMContentLoaded', () => {
       default:
         return t('ai.undoFailStep', { msg: message });
     }
-  }
-
-  async function getSafeBookmarkMoveIndex(parentId, desiredIndex) {
-    if (!parentId || typeof desiredIndex !== 'number' || Number.isNaN(desiredIndex)) {
-      return undefined;
-    }
-
-    const children = await new Promise((resolve, reject) => {
-      chrome.bookmarks.getChildren(parentId, (nodes) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(Array.isArray(nodes) ? nodes : []);
-        }
-      });
-    });
-
-    return Math.max(0, Math.min(desiredIndex, children.length));
   }
 
   function resetAiPlanDraft() {
@@ -5246,6 +5219,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 真实 Chromium 对「同文件夹内」move 的 index 按“移除前”语义解释：BookmarkModel::Move
+  // 会在 index 大于当前位次时内部 index--，且 index 等于当前位次或当前位次+1 时视为已在位直接跳过。
+  // 统一在此换算：调用方一律传「最终落位」索引（移除被移项后的目标位次），跨文件夹时语义不变。
+  async function moveBookmarkToPosition(id, parentId, finalIndex) {
+    const children = await new Promise((resolve) => {
+      chrome.bookmarks.getChildren(parentId, (nodes) => resolve(Array.isArray(nodes) ? nodes : []));
+    });
+    const currentIndex = children.findIndex((child) => child.id === id);
+    const maxFinalIndex = children.length - (currentIndex >= 0 ? 1 : 0);
+    const finalPosition = Math.max(0, Math.min(finalIndex, maxFinalIndex));
+    const apiIndex = currentIndex >= 0 && finalPosition > currentIndex ? finalPosition + 1 : finalPosition;
+    return moveBookmarkSafe(id, { parentId, index: apiIndex });
+  }
+
   async function moveBookmarkIdsToFolder(ids, folderId, message) {
     const previousState = ids.map((id) => {
       const bookmark = state.bookmarkMap.get(id);
@@ -5262,7 +5249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveResults = [];
     for (const id of ids) {
       try {
-        await moveBookmarkSafe(id, { parentId: folderId, index: insertIndex });
+        await moveBookmarkToPosition(id, folderId, insertIndex);
         movedCount += 1;
         moveResults.push({ status: 'fulfilled' });
       } catch (error) {
@@ -5317,7 +5304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveResults = [];
     for (const id of ids) {
       try {
-        await moveBookmarkSafe(id, { parentId: target.parentId, index: insertIndex });
+        await moveBookmarkToPosition(id, target.parentId, insertIndex);
         movedCount += 1;
         moveResults.push({ status: 'fulfilled' });
       } catch (error) {
@@ -5379,7 +5366,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const insertIndex = getFolderInsertIndex(folderId);
 
     try {
-      await moveBookmarkSafe(folder.id, { parentId: folderId, index: insertIndex });
+      await moveBookmarkToPosition(folder.id, folderId, insertIndex);
     } catch (error) {
       showToast(t('manage.moveFailed'), 'error');
       clearDragState();
@@ -5810,7 +5797,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (action.type === 'move') {
       for (const bookmark of action.payload) {
-        await runStep(() => moveBookmarkSafe(bookmark.id, { parentId: bookmark.parentId, index: bookmark.index }));
+        await runStep(() => moveBookmarkToPosition(bookmark.id, bookmark.parentId, bookmark.index));
       }
       showToast(failedCount > 0 ? t('manage.undoRetryFailed') : t('manage.undoMoveDone'), failedCount > 0 ? 'warning' : 'success');
       if (failedCount > 0) {
